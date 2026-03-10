@@ -191,9 +191,14 @@ steelart_server/
 - `.github/workflows/deploy.yml`
 - `src/shared/env/server.ts`
 - `src/shared/db/pool.ts`
+- `src/shared/db/tx.ts`
 - `src/shared/api/response.ts`
 - `src/shared/api/errors.ts`
+- `src/shared/api/route.ts`
 - `src/shared/auth/guard.ts`
+- `src/shared/logger/logger.ts`
+- `src/shared/geo/distance.ts`
+- `src/shared/validation/parse.ts`
 - `src/lambdas/auth/handler.ts`
 - `src/lambdas/users/handler.ts`
 
