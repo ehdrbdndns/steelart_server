@@ -17,6 +17,7 @@
 - `/Users/donggyunyang/code/steelart/steelart_server/docs/SERVER_ARCHITECTURE_DRAFT.md`
 - `/Users/donggyunyang/code/steelart/steelart_server/docs/FOLDER_STRUCTURE_DRAFT.md`
 - `/Users/donggyunyang/code/steelart/steelart_server/docs/MASTER_PLAN.md`
+- `/Users/donggyunyang/code/steelart/steelart_server/docs/IMPLEMENTATION_SEQUENCE.md`
 
 ## Source Of Truth
 - UI behavior, page names, and flows: Figma first, then the root app docs.

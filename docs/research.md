@@ -1,153 +1,261 @@
-# SteelArt Server 리서치 정리
+# 1단계 실행 리서치
 
-## 읽은 문서 범위
-- `/Users/donggyunyang/code/steelart/AGENTS.md`
-- `/Users/donggyunyang/code/steelart/STEELART_DB_TABLES.md`
-- `/Users/donggyunyang/code/steelart/STEELART_APP_MVP_BRIEF.md`
-- `/Users/donggyunyang/code/steelart/STEELART_APP_SCREEN_STRUCTURE.md`
-- `/Users/donggyunyang/code/steelart/STEELART_APP_SCREEN_SPECS.md`
-- `/Users/donggyunyang/code/steelart/STEELART_SERVER_API_DRAFT.md`
-- `/Users/donggyunyang/code/steelart/steelart_server/README.md`
-- `/Users/donggyunyang/code/steelart/steelart_server/docs/SERVER_ARCHITECTURE_DRAFT.md`
-- `/Users/donggyunyang/code/steelart/steelart_server/docs/FOLDER_STRUCTURE_DRAFT.md`
-- `/Users/donggyunyang/code/steelart/steelart_server/docs/MASTER_PLAN.md`
+## 대상 단계
+- 문서 기준 단계: `IMPLEMENTATION_SEQUENCE.md`의 `1단계. 프로젝트 부트스트랩`
+- 대상 브랜치: `codex/01-bootstrap-project`
 
-## 지금 이 폴더가 의미하는 것
-- `steelart_server`는 아직 구현된 서버가 아니라, 문서 기준으로 서버를 부트스트랩하기 위한 준비 폴더다.
-- 목표는 `steelart_app`이 요구하는 기능을 `steelart_dashboard`와 같은 데이터 모델 위에서 안정적인 `/v1` API로 제공하는 것이다.
-- 즉, 내가 너와 같이 해야 하는 일은 "문서를 읽고 방향을 잡는 것"에서 끝나는 게 아니라, 이 문서들을 기준으로 실제 서버 프로젝트를 세우고 순서대로 API를 구현하는 것이다.
+## 1단계의 목표
+- 아직 코드가 없는 `steelart_server`를 실제 TypeScript 서버 프로젝트로 시작 가능한 상태로 만든다.
+- 이후 단계에서 공통 모듈, SAM 템플릿, 도메인 API를 얹을 수 있도록 최소 골격만 만든다.
+- 이 단계에서는 제품 기능 구현보다 "프로젝트가 자랄 수 있는 기반"을 만드는 것이 목표다.
 
-## 문서 기준으로 확정된 큰 방향
+## 1단계에서 해야 하는 일
+- 루트 `package.json` 생성
+- 루트 `tsconfig.json` 생성
+- 루트 `.env.example` 생성
+- `src/`, `infra/sam/`, `.github/workflows/`, `tests/` 디렉터리 생성
+- `src/lambdas/`, `src/domains/`, `src/shared/` 하위 기본 구조 생성
+- 최소 엔트리 파일 또는 placeholder 파일 생성
+- 타입체크와 빌드 검증을 위한 최소 스크립트 연결
 
-### 1. 서버의 역할
-- 앱 전용 백엔드로서 로그인, 온보딩, 홈, 검색, 작품, 지도, 코스, 마이페이지를 지원해야 한다.
-- 대시보드에서 관리되는 데이터와 용어를 그대로 재사용해야 한다.
-- 앱 화면 구조는 Figma와 앱 문서를 따르고, 서버는 그 흐름을 깨지 않는 API를 제공해야 한다.
+## 1단계에서 하지 말아야 하는 일
+- 실제 도메인 비즈니스 로직 구현
+- SAM 템플릿 상세 라우트 작성
+- GitHub Actions 워크플로우 상세 구현
+- 인증/DB/응답 유틸 구현
+- 실제 API 계약 구현
+- 실제 체크인/좋아요/검색 기능 구현
 
-### 2. 기술 방향
+## 1단계에 필요한 확정 입력값
+
+### 기술 스택
 - 런타임: `Node.js 24`
+- Lambda 런타임 식별자: `nodejs24.x`
+- 아키텍처: `arm64`
 - 언어: `TypeScript`
 - 패키지 매니저: `pnpm`
-- 검증: `zod`
-- DB 접근: `mysql2` raw SQL
-- 인프라 형태: `API Gateway HTTP API + Lambda + RDS`
-- 배포 및 자동 CI/CD 기준: `AWS SAM`을 활용해 빌드, 배포, 환경 연동을 자동화하는 방향으로 간다.
-- Lambda는 엔드포인트별 쪼개기보다 도메인별로 묶는다.
+- API Gateway 기준: `HTTP API`
+- 인프라 기준: `AWS SAM`
+- DB 접근 기준: `mysql2`
+- 요청 검증 기준: `zod`
 
-### 3. 서버가 다뤄야 하는 도메인
-- `auth`
-- `users`
-- `home`
-- `search`
-- `artworks`
-- `map`
-- `courses`
+### 구조 원칙
+- 루트는 진입 문서와 프로젝트 설정만 둔다.
+- 로컬 문서는 `docs/` 아래에서 관리한다.
+- 비즈니스 로직은 `src/domains`
+- Lambda 엔트리포인트는 `src/lambdas`
+- 공통 코드는 `src/shared`
+- SAM 템플릿은 `infra/sam`
+- 자동 배포는 `.github/workflows`
 
-### 4. 이미 확정된 제품/API 규칙
-- Base path는 `/v1`
-- 익명 탐색은 허용하지 않음
-- 로그인 후 온보딩 3단계를 완료해야 메인 탭 진입
-- 홈 데이터는 일괄 API가 아니라 분리된 API로 조회
-- 홈의 `region` 개념은 `zones`로 해석
-- 작품 검색은 작품명, 작가명, 장소명까지 한 API로 검색
-- 최근 검색어는 서버 저장이 아니라 앱 로컬 `AsyncStorage`
-- 작품 필터는 `placeId`, `artistType`, `festivalYear` 복수 선택 허용
-- `artistType`는 `artists.type`
-- 작품 상세는 `artwork_festivals`의 전체 연도 목록을 반환
-- 지도 상세 전용 API는 없고 작품 상세 API를 재사용
-- 지도 검색도 공용 작품 검색 API를 재사용
-- 지도의 즐겨찾기-only 필터는 서버가 아니라 앱에서 처리
-- 공지사항과 외부 링크는 서버가 아니라 앱 하드코딩
-- 체크인은 공식 코스만 가능
-- 체크인은 10m 기준 + 약간의 GPS 허용 오차 적용
-- 로그아웃 API 없음
-- 닉네임 중복 확인 API 없음
+### 브랜치 작업 원칙
+- 브랜치명은 `codex/01-bootstrap-project`
+- 이 브랜치에서는 "구조와 설정"만 만든다.
+- 공통 런타임 로직은 다음 브랜치 `codex/02-shared-runtime`에서 구현한다.
+- SAM 템플릿 상세와 CI/CD 구현은 `codex/03-sam-http-api-cicd`에서 진행한다.
 
-## DB와 앱을 같이 보고 파악한 핵심
-- 서버는 새 스키마를 발명하는 역할이 아니다. 이미 대시보드와 DB에 있는 모델을 앱용 응답으로 잘 가공하는 역할이 핵심이다.
-- 중심 테이블은 `artists`, `artworks`, `artwork_images`, `artwork_festivals`, `places`, `zones`, `courses`, `course_items`, `course_checkins`, `home_banners`, `users`, `artwork_likes`, `course_likes`다.
-- 앱 경험상 작품과 장소가 1:1처럼 보일 수 있지만 실제 DB는 N:1일 수 있으므로, API 설계 시 이 차이를 의식해야 한다.
-- 읽기 API가 먼저 안정되어야 앱의 홈, 작품, 지도, 코스 흐름이 열리고, 그 다음에 좋아요/코스 작성/체크인을 붙이는 순서가 맞다.
+## 1단계에서 생성해야 하는 디렉터리
 
-## 내가 너와 같이 해야 하는 일
+### 루트 디렉터리
+- `.github/workflows/`
+- `infra/sam/`
+- `src/`
+- `tests/`
 
-### 1. 서버 골격을 실제 코드로 시작하기
-- 현재 문서만 있는 상태를 끝내고 실제 `TypeScript` 서버 프로젝트를 만든다.
-- 최소한 아래는 바로 생겨야 한다.
-  - `package.json`
-  - `tsconfig.json`
-  - `.env.example`
-  - `src/shared/*`
-  - `src/lambdas/*`
-  - `src/domains/*`
-  - `infra/sam/*`
-  - `.github/workflows/*`
+### `src/` 하위
+- `src/lambdas/auth/`
+- `src/lambdas/users/`
+- `src/lambdas/home/`
+- `src/lambdas/search/`
+- `src/lambdas/artworks/`
+- `src/lambdas/map/`
+- `src/lambdas/courses/`
+- `src/domains/auth/`
+- `src/domains/users/`
+- `src/domains/home/`
+- `src/domains/search/`
+- `src/domains/artworks/`
+- `src/domains/map/`
+- `src/domains/courses/`
+- `src/shared/api/`
+- `src/shared/auth/`
+- `src/shared/db/`
+- `src/shared/env/`
+- `src/shared/geo/`
+- `src/shared/logger/`
+- `src/shared/utils/`
+- `src/shared/validation/`
 
-### 2. 공통 기반 먼저 만들기
-- 환경변수 파싱
-- DB pool / transaction 유틸
-- 공통 응답 포맷 `{ data, meta, error }`
-- 공통 에러 코드
-- 인증 가드
-- 라우팅 헬퍼
-- 로깅 / request id 처리
-- `AWS SAM` 템플릿과 배포 파이프라인 초안 구성
+### `tests/` 하위
+- `tests/unit/`
+- `tests/integration/`
 
-### 3. 1차 구현 우선순위대로 API 만들기
-- `POST /v1/auth/kakao`
-- `POST /v1/auth/apple`
-- `GET /v1/auth/me`
-- `PATCH /v1/users/me/onboarding`
-- `GET /v1/users/me`
-- `PATCH /v1/users/me`
-- `PATCH /v1/me/notifications`
-- `PATCH /v1/me/language`
+## 1단계에서 생성해야 하는 파일
 
-이 단계가 먼저인 이유는 앱이 로그인과 온보딩을 통과해야 다른 탭이 열리기 때문이다.
+### 루트 파일
+- `package.json`
+- `tsconfig.json`
+- `.env.example`
 
-### 4. 읽기 중심 API를 붙이기
-- `GET /v1/home/banners`
-- `GET /v1/home/zones`
-- `GET /v1/home/artworks`
-- `GET /v1/home/recommended-courses`
-- `GET /v1/search/artworks`
-- `GET /v1/artworks`
-- `GET /v1/artworks/{artworkId}`
-- `GET /v1/artworks/filters`
-- `GET /v1/map/artworks`
+### 최소 placeholder 파일
+- `src/lambdas/auth/handler.ts`
+- `src/lambdas/users/handler.ts`
 
-이 단계가 끝나야 홈, 작품, 지도 경험이 대부분 살아난다.
+### 지금은 디렉터리만 만들어도 되는 위치
+- `infra/sam/`
+- `.github/workflows/`
+- `src/domains/*`
+- `src/shared/*`
+- `tests/*`
 
-### 5. 참여형 기능을 구현하기
-- 작품 좋아요 / 취소
-- 추천 코스 / 내 코스 / 코스 상세
-- 사용자 코스 생성 / 수정
-- 코스 좋아요 / 취소
+## package.json에 필요한 정보
 
-### 6. 마지막으로 체크인 규칙을 완성하기
-- `POST /v1/courses/{courseId}/checkins`
-- 공식 코스 여부 검증
-- 중복 체크인 방지
-- 거리 계산
-- GPS 오차 허용 기준 명시
-- 실패 코드와 재시도 UX를 앱과 맞추기
+### 목적
+- 루트 단일 패키지 기준으로 의존성과 스크립트를 관리한다.
+- 함수별 개별 `package.json` 구조는 사용하지 않는다.
 
-## 같이 결정하거나 확인해야 하는 것
-- 카카오/애플 로그인 세부 인증 방식
-- 서버 토큰 발급 방식과 만료/갱신 전략
-- `users`, `artwork_likes`, `course_likes`의 실제 DDL 확인
-- GPS 허용 오차를 코드상 몇 m까지 볼지
-- 체크인 실패 코드 이름과 앱 메시지 연결 방식
-- 홈 `zones` 정렬과 노출 규칙
-- `AWS SAM` 기반 CI/CD를 어떤 브랜치 전략과 환경 분리 규칙으로 운영할지
+### 기본 필드 권장안
+- `name`: `steelart_server`
+- `private`: `true`
+- `packageManager`: `pnpm`
+- `engines.node`: `>=24`
 
-## 작업하면서 계속 지켜야 할 원칙
-- Figma와 앱 문서에 없는 제품 동작을 서버에서 임의로 만들지 않는다.
-- API 계약이 바뀌면 루트의 `STEELART_SERVER_API_DRAFT.md`도 같이 갱신한다.
-- 스키마 가정이 바뀌면 `STEELART_DB_TABLES.md` 또는 raw DDL 기준으로 같이 맞춘다.
-- 로컬 문서는 `docs/` 아래에서 한국어로 관리한다.
-- 핸들러는 얇게 유지하고, 비즈니스 로직은 서비스, SQL은 리포지토리로 분리한다.
-- 공지, 외부 링크, 최근 검색어, 지도 상세 전용 API 같은 비대상 범위는 초기에 만들지 않는다.
+### 초기 스크립트 권장안
+- `typecheck`
+- `build`
+- `lint`
+- `test`
+- `sam:validate`
+- `sam:build`
 
-## 한 줄 결론
-- 내가 너와 이 폴더에서 해야 하는 일은, 문서로 합의된 SteelArt 서버 방향을 바탕으로 `Node.js 24 + TypeScript + mysql2 + zod` 구조의 실제 `steelart_server`를 부트스트랩하고, `AWS SAM` 기반 자동 CI/CD까지 포함해 `/v1` 인증/사용자 API부터 시작해서 홈/검색/작품/지도/코스/체크인 API를 구현 가능한 순서대로 완성하는 것이다.
+### 1단계에서 바로 넣어도 되는 devDependencies
+- `typescript`
+- `@types/node`
+- `@types/aws-lambda`
+
+### 1단계에서 넣어도 되지만 급하지 않은 항목
+- `esbuild`
+- `eslint`
+- `vitest` 또는 다른 테스트 러너
+
+### 2단계 이후에 넣어도 되는 런타임 의존성
+- `zod`
+- `mysql2`
+- `@aws-sdk/*`
+
+## tsconfig.json에 필요한 정보
+
+### 역할
+- root `tsconfig.json`은 TypeScript emit보다 타입체크 기준 설정 역할이 더 크다.
+- 실제 Lambda 번들은 이후 `AWS SAM + esbuild`가 담당한다.
+
+### 권장 방향
+- `target`: `ES2022` 이상
+- `module`: `NodeNext`
+- `moduleResolution`: `NodeNext`
+- `strict`: `true`
+- `noEmit`: `true`
+- `skipLibCheck`: `true`
+- `resolveJsonModule`: `true`
+- `verbatimModuleSyntax`: `true`
+- `isolatedModules`: `true`
+
+### 이유
+- Node 24와 맞는 최신 문법을 쓰기 쉽다.
+- root build는 타입체크 중심으로 단순화할 수 있다.
+- 실제 배포 아티팩트는 SAM/esbuild가 만들기 때문에 `tsc` emit에 의존할 필요가 없다.
+
+## .env.example에 필요한 정보
+
+### 목적
+- 실제 secret을 넣는 파일이 아니라, 어떤 환경 변수가 필요한지 명세하는 파일이다.
+- 1단계에서는 값보다 키 목록의 뼈대를 먼저 잡는 것이 중요하다.
+
+### 초기 placeholder 권장안
+- `APP_ENV`
+- `AWS_REGION`
+- `DB_HOST`
+- `DB_PORT`
+- `DB_NAME`
+- `DB_USER`
+- `DB_PASSWORD`
+- `JWT_SECRET`
+- `KAKAO_CLIENT_ID`
+- `APPLE_CLIENT_ID`
+
+### 주의
+- 실제 비밀값은 넣지 않는다.
+- 이후 단계에서 `Secrets Manager` 기준으로 정리하더라도 `.env.example`은 개발용 명세 문서로 유지한다.
+
+## placeholder 파일에 필요한 정보
+
+### `src/lambdas/auth/handler.ts`
+- 최소 export만 있는 placeholder로 충분하다.
+- 이후 SAM/esbuild에서 entry point로 연결될 위치라는 점만 드러나면 된다.
+
+### `src/lambdas/users/handler.ts`
+- `auth`와 같은 방식의 최소 placeholder면 된다.
+
+### 지금 하지 않아도 되는 것
+- handler 내부 라우팅 로직 작성
+- APIGateway 이벤트 파싱 구현
+- 응답 유틸 연결
+
+## 1단계 완료 시 확인해야 할 문서 정합성
+- `README.md`의 Read First 순서와 실제 문서 구조가 맞는지
+- `FOLDER_STRUCTURE_DRAFT.md`의 구조와 실제 생성 구조가 크게 다르지 않은지
+- `MASTER_PLAN.md`와 `IMPLEMENTATION_SEQUENCE.md`의 1단계 범위가 실제 작업 범위와 맞는지
+
+## 1단계 검증 기준 상세
+
+### 로컬 검증
+- `pnpm install`이 정상 동작한다.
+- `pnpm typecheck`가 통과한다.
+- placeholder 엔트리 파일 import 에러가 없다.
+
+### 구조 검증
+- 문서에 정의한 핵심 디렉터리가 생성되어 있다.
+- 루트에는 문서/설정만 있고 도메인 구현 코드는 아직 없다.
+- 함수별 개별 `package.json`이 생기지 않았다.
+
+### 범위 검증
+- SAM 상세 템플릿을 과하게 구현하지 않았다.
+- 공통 런타임 로직을 1단계에서 과도하게 넣지 않았다.
+- 실제 API 비즈니스 로직이 1단계 브랜치에 섞이지 않았다.
+
+## 1단계에서 예상되는 결정 포인트
+
+### 바로 결정해도 되는 것
+- root 단일 패키지 구조 사용
+- `pnpm` 사용
+- `nodejs24.x` 사용
+- TypeScript 타입체크 중심 `tsconfig` 사용
+
+### 다음 브랜치에서 결정해도 되는 것
+- SAM 템플릿 상세 구조
+- GitHub Actions 워크플로우 내용
+- 공통 에러 코드 목록
+- auth guard 구현 방식
+- logger 포맷
+
+## 1단계에서 피해야 할 실수
+- `Node.js 24`가 아닌 이전 런타임 기준으로 시작하는 것
+- 함수별 `package.json` 구조를 도입하는 것
+- secret 값을 샘플 파일에 넣는 것
+- 도메인 구현 없이도 충분한 단계인데 과하게 코드를 쓰는 것
+- 문서에 없는 폴더 체계를 임의로 만드는 것
+
+## 1단계 작업에 참고할 공식 기준
+- AWS Lambda는 `nodejs24.x` 런타임을 지원한다.
+- `AWS SAM`은 TypeScript Lambda를 `esbuild`로 빌드할 수 있다.
+- `AWS::Serverless::HttpApi`를 기준으로 HTTP API 리소스를 구성할 수 있다.
+
+## 공식 참고 링크
+- AWS Lambda Node.js 런타임: [Building Lambda functions with Node.js](https://docs.aws.amazon.com/lambda/latest/dg/lambda-nodejs.html)
+- AWS Lambda 지원 런타임: [Lambda runtimes](https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html)
+- AWS SAM TypeScript + esbuild: [Building Node.js Lambda functions with esbuild in AWS SAM](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-using-build-typescript.html)
+- AWS SAM HttpApi event/source: [HttpApi property for Function](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-property-function-httpapi.html)
+- AWS SAM HttpApi resource: [AWS::Serverless::HttpApi](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-httpapi.html)
+
+## 1단계 한 줄 결론
+- `codex/01-bootstrap-project` 브랜치에서는 `Node.js 24 + TypeScript + pnpm + HTTP API + AWS SAM` 기준으로 루트 설정 파일과 디렉터리 골격만 만들고, 실제 공통 로직과 인프라 상세 구현은 다음 단계로 넘기는 것이 맞다.

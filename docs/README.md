@@ -10,4 +10,6 @@
 - `SERVER_ARCHITECTURE_DRAFT.md`
 - `FOLDER_STRUCTURE_DRAFT.md`
 - `MASTER_PLAN.md`
+- `IMPLEMENTATION_SEQUENCE.md`
+- `plan.md`
 - `research.md`
