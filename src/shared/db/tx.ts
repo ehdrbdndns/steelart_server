@@ -2,10 +2,15 @@ import type { PoolConnection } from 'mysql2/promise';
 
 import { getPool } from './pool.js';
 
-export async function withTransaction<TValue>(
-  run: (connection: PoolConnection) => Promise<TValue>,
+export type TransactionConnection = Pick<
+  PoolConnection,
+  'beginTransaction' | 'commit' | 'release' | 'rollback'
+>;
+
+export async function runTransaction<TConnection extends TransactionConnection, TValue>(
+  connection: TConnection,
+  run: (connection: TConnection) => Promise<TValue>,
 ): Promise<TValue> {
-  const connection = await getPool().getConnection();
   let transactionStarted = false;
 
   try {
@@ -18,8 +23,11 @@ export async function withTransaction<TValue>(
     if (transactionStarted) {
       try {
         await connection.rollback();
-      } catch {
-        // Preserve the original failure when rollback itself fails.
+      } catch (rollbackError) {
+        console.error('Transaction rollback failed', {
+          originalError: error,
+          rollbackError,
+        });
       }
     }
 
@@ -27,4 +35,11 @@ export async function withTransaction<TValue>(
   } finally {
     connection.release();
   }
+}
+
+export async function withTransaction<TValue>(
+  run: (connection: PoolConnection) => Promise<TValue>,
+): Promise<TValue> {
+  const connection = await getPool().getConnection();
+  return runTransaction(connection, run);
 }
