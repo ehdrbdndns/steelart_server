@@ -9,6 +9,7 @@
 ```text
 steelart_server/
   .github/
+    pull_request_template.md
     workflows/
       ci.yml
       deploy.yml
@@ -19,6 +20,8 @@ steelart_server/
     SERVER_ARCHITECTURE_DRAFT.md
     FOLDER_STRUCTURE_DRAFT.md
     MASTER_PLAN.md
+    IMPLEMENTATION_SEQUENCE.md
+    plan.md
     research.md
   package.json
   tsconfig.json

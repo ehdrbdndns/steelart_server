@@ -10,7 +10,6 @@
 - `/Users/donggyunyang/code/steelart/STEELART_APP_MVP_BRIEF.md`
 - `/Users/donggyunyang/code/steelart/steelart_server/docs/SERVER_ARCHITECTURE_DRAFT.md`
 - `/Users/donggyunyang/code/steelart/steelart_server/docs/FOLDER_STRUCTURE_DRAFT.md`
-- `/Users/donggyunyang/code/steelart/steelart_server/docs/research.md`
 
 ## 전제
 - 서버는 아직 코드가 없는 문서 우선 상태다.
