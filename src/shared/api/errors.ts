@@ -79,7 +79,7 @@ export function toAppError(error: unknown): AppError {
   if (error instanceof Error) {
     return new AppError('INTERNAL_ERROR', {
       cause: error,
-      message: error.message || APP_ERROR_MESSAGES.INTERNAL_ERROR,
+      message: APP_ERROR_MESSAGES.INTERNAL_ERROR,
     });
   }
 
@@ -91,10 +91,14 @@ export function toAppError(error: unknown): AppError {
 
 export function serializeAppError(error: unknown): SerializedAppError {
   const appError = toAppError(error);
+  const message =
+    appError.code === 'INTERNAL_ERROR'
+      ? APP_ERROR_MESSAGES.INTERNAL_ERROR
+      : appError.message;
 
   return {
     code: appError.code,
-    message: appError.message,
+    message,
     ...(appError.details === undefined ? {} : { details: appError.details }),
   };
 }

@@ -1,7 +1,7 @@
 # 2단계 실행 리서치
 
 ## 문서 목적
-- 이 문서는 [IMPLEMENTATION_SEQUENCE.md](/Users/donggyunyang/code/steelart/steelart_server/docs/IMPLEMENTATION_SEQUENCE.md)의 `2단계. 공통 런타임 구축`을 실제로 시작하기 전에 필요한 자료를 모아둔 리서치 문서다.
+- 이 문서는 [IMPLEMENTATION_SEQUENCE.md](./IMPLEMENTATION_SEQUENCE.md)의 `2단계. 공통 런타임 구축`을 실제로 시작하기 전에 필요한 자료를 모아둔 리서치 문서다.
 - 대상 브랜치는 `codex/02-shared-runtime`이다.
 - 기존 `research.md`의 1단계 내용은 제거하고, 2단계 전용 내용만 남긴다.
 

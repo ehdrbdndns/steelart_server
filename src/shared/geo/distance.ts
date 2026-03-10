@@ -35,15 +35,19 @@ export function calculateDistanceMeters(from: GeoPoint, to: GeoPoint): number {
     return 0;
   }
 
+  // Haversine formula works on radians, so we first convert the latitude/longitude deltas.
   const latDelta = toRadians(to.lat - from.lat);
   const lngDelta = toRadians(to.lng - from.lng);
   const fromLat = toRadians(from.lat);
   const toLat = toRadians(to.lat);
 
+  // `haversine` is the angular distance ratio between two points on the earth sphere.
+  // `sin(delta / 2)^2` captures the latitude/longitude gap and the cosine terms scale it by latitude.
   const haversine =
     Math.sin(latDelta / 2) ** 2 +
     Math.cos(fromLat) * Math.cos(toLat) * Math.sin(lngDelta / 2) ** 2;
 
+  // `2 * R * asin(sqrt(h))` converts the angular distance back into meters on the earth radius.
   const distance = 2 * EARTH_RADIUS_METERS * Math.asin(Math.sqrt(haversine));
   return Math.round(distance * 1000) / 1000;
 }

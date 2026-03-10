@@ -1,8 +1,8 @@
 # research.md 구현 상세 플랜
 
 ## 문서 목적
-- 이 문서는 [research.md](/Users/donggyunyang/code/steelart/steelart_server/docs/research.md)에 정리된 `2단계 실행 리서치`를 실제 구현 작업으로 옮기기 위한 상세 플랜이다.
-- 대상 범위는 [IMPLEMENTATION_SEQUENCE.md](/Users/donggyunyang/code/steelart/steelart_server/docs/IMPLEMENTATION_SEQUENCE.md)의 `2단계. 공통 런타임 구축`이며, 대상 브랜치는 `codex/02-shared-runtime`이다.
+- 이 문서는 [research.md](./research.md)에 정리된 `2단계 실행 리서치`를 실제 구현 작업으로 옮기기 위한 상세 플랜이다.
+- 대상 범위는 [IMPLEMENTATION_SEQUENCE.md](./IMPLEMENTATION_SEQUENCE.md)의 `2단계. 공통 런타임 구축`이며, 대상 브랜치는 `codex/02-shared-runtime`이다.
 
 ## 목표
 - 모든 도메인 Lambda가 공통으로 사용할 `shared` 런타임 모듈을 만든다.
@@ -10,11 +10,11 @@
 - 이번 단계에서는 도메인 비즈니스 로직이 아니라 `env`, `db`, `error`, `response`, `route`, `auth`, `logger`, `geo`, `validation`의 기초를 만드는 데 집중한다.
 
 ## 기준 문서
-- [research.md](/Users/donggyunyang/code/steelart/steelart_server/docs/research.md)
-- [MASTER_PLAN.md](/Users/donggyunyang/code/steelart/steelart_server/docs/MASTER_PLAN.md)
-- [IMPLEMENTATION_SEQUENCE.md](/Users/donggyunyang/code/steelart/steelart_server/docs/IMPLEMENTATION_SEQUENCE.md)
-- [FOLDER_STRUCTURE_DRAFT.md](/Users/donggyunyang/code/steelart/steelart_server/docs/FOLDER_STRUCTURE_DRAFT.md)
-- [SERVER_ARCHITECTURE_DRAFT.md](/Users/donggyunyang/code/steelart/steelart_server/docs/SERVER_ARCHITECTURE_DRAFT.md)
+- [research.md](./research.md)
+- [MASTER_PLAN.md](./MASTER_PLAN.md)
+- [IMPLEMENTATION_SEQUENCE.md](./IMPLEMENTATION_SEQUENCE.md)
+- [FOLDER_STRUCTURE_DRAFT.md](./FOLDER_STRUCTURE_DRAFT.md)
+- [SERVER_ARCHITECTURE_DRAFT.md](./SERVER_ARCHITECTURE_DRAFT.md)
 
 ## 범위
 
@@ -150,7 +150,7 @@
 
 ### 8. 샘플 핸들러 연결
 - 상태: 완료
-- [src/lambdas/auth/handler.ts](/Users/donggyunyang/code/steelart/steelart_server/src/lambdas/auth/handler.ts) 또는 [src/lambdas/users/handler.ts](/Users/donggyunyang/code/steelart/steelart_server/src/lambdas/users/handler.ts) 중 하나를 샘플 연결 대상으로 선택한다.
+- [src/lambdas/auth/handler.ts](../src/lambdas/auth/handler.ts) 또는 [src/lambdas/users/handler.ts](../src/lambdas/users/handler.ts) 중 하나를 샘플 연결 대상으로 선택한다.
 
 #### 목표
 - 공통 route helper
@@ -183,7 +183,7 @@
 
 ### 10. 문서 정합성 맞추기
 - 상태: 완료
-- 실제 생성 파일이 [FOLDER_STRUCTURE_DRAFT.md](/Users/donggyunyang/code/steelart/steelart_server/docs/FOLDER_STRUCTURE_DRAFT.md)와 크게 어긋나지 않는지 확인한다.
+- 실제 생성 파일이 [FOLDER_STRUCTURE_DRAFT.md](./FOLDER_STRUCTURE_DRAFT.md)와 크게 어긋나지 않는지 확인한다.
 - 필요 시 해당 문서의 “처음 바로 만들어야 할 파일” 목록과 맞춘다.
 - 이번 단계 범위를 넘는 구현이 들어갔는지 점검한다.
 
