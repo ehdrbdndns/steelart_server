@@ -1,0 +1,50 @@
+# Local agent and spec tooling
+.codex/
+openspec/
+
+# Dependencies
+node_modules/
+.pnpm-store/
+.pnp/
+.pnp.js
+.yarn/
+
+# Build outputs
+dist/
+build/
+coverage/
+cdk.out/
+.aws-sam/
+.serverless/
+.turbo/
+.cache/
+
+# Test and browser tooling
+.playwright/
+.playwright-cli/
+playwright-report/
+test-results/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Logs and temporary files
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+tmp/
+temp/
+
+# Editor and OS files
+.DS_Store
+.idea/
+.vscode/
+
+# TypeScript
+*.tsbuildinfo
