@@ -9,16 +9,17 @@
 2. `docs/README.md`
 3. `docs/SERVER_ARCHITECTURE_DRAFT.md`
 4. `docs/FOLDER_STRUCTURE_DRAFT.md`
-5. `docs/IMPLEMENTATION_SEQUENCE.md`
+5. `docs/MASTER_PLAN.md`
 6. `/Users/donggyunyang/code/steelart/STEELART_SERVER_API_DRAFT.md`
 7. `/Users/donggyunyang/code/steelart/STEELART_DB_TABLES.md`
 
 ## Documentation Rule
 - Keep local documentation files under `docs/`.
 - Root-level `AGENTS.md` and `README.md` stay at the workspace root as entry documents.
+- Local documents are managed in Korean.
 
 ## Recommended Starting Point
-- Runtime: `Node.js + TypeScript`
+- Runtime: `Node.js 24 + TypeScript`
 - Package manager: `pnpm`
 - Infra shape: `API Gateway HTTP API + Lambda + RDS`
 - DB access: `mysql2` raw SQL
@@ -30,4 +31,4 @@
 - Confirm the initial architecture choices in `docs/SERVER_ARCHITECTURE_DRAFT.md`.
 - Confirm the code layout in `docs/FOLDER_STRUCTURE_DRAFT.md`.
 - Bootstrap the actual server project skeleton.
-- Start implementation in the order defined by `docs/IMPLEMENTATION_SEQUENCE.md`.
+- Start implementation in the order defined by `docs/MASTER_PLAN.md`.

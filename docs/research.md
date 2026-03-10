@@ -10,7 +10,7 @@
 - `/Users/donggyunyang/code/steelart/steelart_server/README.md`
 - `/Users/donggyunyang/code/steelart/steelart_server/docs/SERVER_ARCHITECTURE_DRAFT.md`
 - `/Users/donggyunyang/code/steelart/steelart_server/docs/FOLDER_STRUCTURE_DRAFT.md`
-- `/Users/donggyunyang/code/steelart/steelart_server/docs/IMPLEMENTATION_SEQUENCE.md`
+- `/Users/donggyunyang/code/steelart/steelart_server/docs/MASTER_PLAN.md`
 
 ## 지금 이 폴더가 의미하는 것
 - `steelart_server`는 아직 구현된 서버가 아니라, 문서 기준으로 서버를 부트스트랩하기 위한 준비 폴더다.
@@ -25,12 +25,13 @@
 - 앱 화면 구조는 Figma와 앱 문서를 따르고, 서버는 그 흐름을 깨지 않는 API를 제공해야 한다.
 
 ### 2. 기술 방향
-- 런타임: `Node.js`
+- 런타임: `Node.js 24`
 - 언어: `TypeScript`
 - 패키지 매니저: `pnpm`
 - 검증: `zod`
 - DB 접근: `mysql2` raw SQL
 - 인프라 형태: `API Gateway HTTP API + Lambda + RDS`
+- 배포 및 자동 CI/CD 기준: `AWS SAM`을 활용해 빌드, 배포, 환경 연동을 자동화하는 방향으로 간다.
 - Lambda는 엔드포인트별 쪼개기보다 도메인별로 묶는다.
 
 ### 3. 서버가 다뤄야 하는 도메인
@@ -79,7 +80,8 @@
   - `src/shared/*`
   - `src/lambdas/*`
   - `src/domains/*`
-  - `infra/cdk/*`
+  - `infra/sam/*`
+  - `.github/workflows/*`
 
 ### 2. 공통 기반 먼저 만들기
 - 환경변수 파싱
@@ -89,6 +91,7 @@
 - 인증 가드
 - 라우팅 헬퍼
 - 로깅 / request id 처리
+- `AWS SAM` 템플릿과 배포 파이프라인 초안 구성
 
 ### 3. 1차 구현 우선순위대로 API 만들기
 - `POST /v1/auth/kakao`
@@ -136,13 +139,15 @@
 - GPS 허용 오차를 코드상 몇 m까지 볼지
 - 체크인 실패 코드 이름과 앱 메시지 연결 방식
 - 홈 `zones` 정렬과 노출 규칙
+- `AWS SAM` 기반 CI/CD를 어떤 브랜치 전략과 환경 분리 규칙으로 운영할지
 
 ## 작업하면서 계속 지켜야 할 원칙
 - Figma와 앱 문서에 없는 제품 동작을 서버에서 임의로 만들지 않는다.
 - API 계약이 바뀌면 루트의 `STEELART_SERVER_API_DRAFT.md`도 같이 갱신한다.
 - 스키마 가정이 바뀌면 `STEELART_DB_TABLES.md` 또는 raw DDL 기준으로 같이 맞춘다.
+- 로컬 문서는 `docs/` 아래에서 한국어로 관리한다.
 - 핸들러는 얇게 유지하고, 비즈니스 로직은 서비스, SQL은 리포지토리로 분리한다.
 - 공지, 외부 링크, 최근 검색어, 지도 상세 전용 API 같은 비대상 범위는 초기에 만들지 않는다.
 
 ## 한 줄 결론
-- 내가 너와 이 폴더에서 해야 하는 일은, 문서로 합의된 SteelArt 서버 방향을 바탕으로 `Node.js + TypeScript + mysql2 + zod` 구조의 실제 `steelart_server`를 부트스트랩하고, `/v1` 인증/사용자 API부터 시작해서 홈/검색/작품/지도/코스/체크인 API를 구현 가능한 순서대로 완성하는 것이다.
+- 내가 너와 이 폴더에서 해야 하는 일은, 문서로 합의된 SteelArt 서버 방향을 바탕으로 `Node.js 24 + TypeScript + mysql2 + zod` 구조의 실제 `steelart_server`를 부트스트랩하고, `AWS SAM` 기반 자동 CI/CD까지 포함해 `/v1` 인증/사용자 API부터 시작해서 홈/검색/작품/지도/코스/체크인 API를 구현 가능한 순서대로 완성하는 것이다.

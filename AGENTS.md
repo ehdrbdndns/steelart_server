@@ -16,7 +16,7 @@
 - `/Users/donggyunyang/code/steelart/steelart_server/docs/README.md`
 - `/Users/donggyunyang/code/steelart/steelart_server/docs/SERVER_ARCHITECTURE_DRAFT.md`
 - `/Users/donggyunyang/code/steelart/steelart_server/docs/FOLDER_STRUCTURE_DRAFT.md`
-- `/Users/donggyunyang/code/steelart/steelart_server/docs/IMPLEMENTATION_SEQUENCE.md`
+- `/Users/donggyunyang/code/steelart/steelart_server/docs/MASTER_PLAN.md`
 
 ## Source Of Truth
 - UI behavior, page names, and flows: Figma first, then the root app docs.
@@ -29,6 +29,7 @@
 - This directory is documentation-first. The server codebase has not been bootstrapped yet.
 - Build the local server structure from the docs in this directory unless the user changes direction.
 - Keep local documentation files under `docs/`. Exceptions: root-level `AGENTS.md` and `README.md`.
+- Manage local documentation in Korean.
 
 ## Confirmed API / Product Decisions
 - Base path is `/v1`.
@@ -50,10 +51,11 @@
 - Check-in uses a 10m base rule with slight GPS tolerance.
 
 ## Server Working Rules
-- Prefer `Node.js + TypeScript` aligned with the rest of the workspace.
+- Prefer `Node.js 24 + TypeScript` aligned with the rest of the workspace.
 - Prefer `mysql2` raw SQL and `zod` validation unless the user explicitly asks for a different stack.
 - Keep API handlers thin. Put business logic in domain services and SQL in repositories.
 - Add new local documentation files under `docs/` and update references when paths change.
+- Write new local documents in Korean, and keep updated documents in Korean as they evolve.
 - Do not introduce product behavior that conflicts with root app docs or the server API draft.
 - If implementation needs an API contract change, update the root draft first or together.
 - Before schema changes, check whether `steelart_dashboard` admin flows and seed data are affected.
