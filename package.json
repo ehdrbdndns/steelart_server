@@ -10,13 +10,18 @@
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "build": "pnpm typecheck",
     "lint": "node --eval \"console.log('lint step will be added in a later stage')\"",
-    "test": "node --eval \"console.log('test step will be added in a later stage')\"",
+    "test": "tsx --test tests/unit/**/*.test.ts",
     "sam:validate": "node --eval \"console.log('SAM validation will be wired in a later stage')\"",
     "sam:build": "node --eval \"console.log('SAM build will be wired in a later stage')\""
+  },
+  "dependencies": {
+    "mysql2": "^3.15.1",
+    "zod": "^4.1.11"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.0",
     "@types/node": "^24.0.0",
+    "tsx": "^4.20.6",
     "typescript": "^5.0.0"
   }
 }
