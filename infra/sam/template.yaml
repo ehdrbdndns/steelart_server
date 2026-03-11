@@ -17,7 +17,7 @@ Parameters:
     Description: MySQL host name.
   DbPort:
     Type: Number
-    Default: 3306
+    Default: '3306'
     Description: MySQL port.
   DbName:
     Type: String
@@ -66,7 +66,6 @@ Globals:
       Variables:
         APP_ENV: !Ref StageName
         APPLE_CLIENT_ID: !Ref AppleClientId
-        AWS_REGION: !Ref AWS::Region
         DB_HOST: !Ref DbHost
         DB_NAME: !Ref DbName
         DB_PASSWORD: !Ref DbPassword
@@ -75,7 +74,7 @@ Globals:
         JWT_SECRET: !Ref JwtSecret
         KAKAO_CLIENT_ID: !Ref KakaoClientId
         LOG_LEVEL: !Ref LogLevel
-        NODE_OPTIONS: --enable-source-maps
+        NODE_OPTIONS: '--enable-source-maps'
     LoggingConfig:
       LogFormat: JSON
       ApplicationLogLevel: INFO
@@ -109,8 +108,7 @@ Resources:
         DetailedMetricsEnabled: false
       AccessLogSettings:
         DestinationArn: !GetAtt HttpApiAccessLogGroup.Arn
-        Format: >-
-          {"requestId":"$context.requestId","sourceIp":"$context.identity.sourceIp","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","routeKey":"$context.routeKey","status":"$context.status","responseLength":"$context.responseLength"}
+        Format: '{"requestId":"$context.requestId","sourceIp":"$context.identity.sourceIp","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","routeKey":"$context.routeKey","status":"$context.status","responseLength":"$context.responseLength"}'
       Tags:
         Application: !Ref AppName
         Service: steelart-server
