@@ -11,8 +11,9 @@
     "build": "pnpm typecheck",
     "lint": "node --eval \"console.log('lint step will be added in a later stage')\"",
     "test": "tsx --test tests/unit/**/*.test.ts",
-    "sam:validate": "node --eval \"console.log('SAM validation will be wired in a later stage')\"",
-    "sam:build": "node --eval \"console.log('SAM build will be wired in a later stage')\""
+    "sam:validate": "sam validate --template-file infra/sam/template.yaml --config-file samconfig.toml --config-env default",
+    "sam:build": "sam build --template-file infra/sam/template.yaml --config-file samconfig.toml --config-env default",
+    "sam:deploy:guided": "sam deploy --guided --template-file infra/sam/template.yaml --config-file samconfig.toml --config-env dev"
   },
   "dependencies": {
     "mysql2": "^3.15.1",
@@ -21,6 +22,7 @@
   "devDependencies": {
     "@types/aws-lambda": "^8.10.0",
     "@types/node": "^24.0.0",
+    "esbuild": "^0.27.3",
     "tsx": "^4.20.6",
     "typescript": "^5.0.0"
   }

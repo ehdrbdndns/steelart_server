@@ -1,77 +1,249 @@
-# 2단계 실행 리서치
+# 3단계 실행 리서치
 
 ## 문서 목적
-- 이 문서는 [IMPLEMENTATION_SEQUENCE.md](./IMPLEMENTATION_SEQUENCE.md)의 `2단계. 공통 런타임 구축`을 실제로 시작하기 전에 필요한 자료를 모아둔 리서치 문서다.
-- 대상 브랜치는 `codex/02-shared-runtime`이다.
-- 기존 `research.md`의 1단계 내용은 제거하고, 2단계 전용 내용만 남긴다.
+- 이 문서는 [IMPLEMENTATION_SEQUENCE.md](./IMPLEMENTATION_SEQUENCE.md)의 `3단계. SAM HTTP API 및 자동 CI/CD`를 실제로 시작하기 전에 필요한 자료를 모아둔 리서치 문서다.
+- 대상 브랜치는 `codex/03-sam-http-api-cicd`다.
+- 기존 `research.md` 내용은 제거하고, 3단계 전용 내용만 남긴다.
 
 ## 대상 단계 요약
-- 목표: 모든 도메인이 공통으로 사용할 런타임 기반을 만든다.
+- 목표: `AWS SAM + HTTP API + GitHub Actions` 기준의 배포 골격을 확정한다.
 - 구현 범위:
-  - 환경변수 파서
-  - DB pool / transaction 유틸
-  - 공통 에러 타입 / 에러 코드
-  - 공통 응답 유틸 `{ data, meta, error }`
-  - request id / logger 유틸
-  - 공통 라우트 헬퍼
-  - auth guard 기본 구조
-  - geo distance 유틸
+  - `infra/sam/template.yaml` 생성
+  - `AWS::Serverless::HttpApi` 리소스 정의
+  - 도메인 Lambda 리소스 골격 정의
+  - 공통 환경 변수 wiring
+  - `infra/sam/samconfig.toml` 생성
+  - `.github/workflows/ci.yml` 생성
+  - `.github/workflows/deploy.yml` 생성
+  - `nodejs24.x`, `arm64`, `esbuild` 기준 설정
+  - 기본 IAM 정책과 로그 설정 정리
 - 산출물:
-  - `src/shared/*` 핵심 모듈
-  - 공통 코드 사용 예제 또는 최소 샘플 핸들러
+  - `sam build` 가능한 SAM 템플릿
+  - CI/CD 워크플로우 초안
 
-## 2단계에서 바로 결정해도 되는 것
-- 런타임 의존성은 `zod`, `mysql2`를 추가한다.
-- 공통 모듈은 `src/shared` 아래에서만 만든다.
-- Lambda 핸들러는 계속 얇게 유지하고, 공통 헬퍼만 연결한다.
-- API Gateway는 `HTTP API` 전제를 유지한다.
-- 응답은 항상 `{ data, meta, error }` 형태로 고정한다.
+## 현재 시작점
+- 1단계 부트스트랩은 이미 끝나 있다.
+- 2단계 공통 런타임도 이미 `src/shared/*` 기준으로 들어가 있다.
+- 따라서 3단계는 “서버 코드가 어느 정도 준비된 상태에서 인프라 뼈대와 배포 파이프라인을 연결하는 단계”로 보면 된다.
+- 현재 리포지토리 구조상 3단계의 핵심 신규 파일은 아래다.
+  - `infra/sam/template.yaml`
+  - `infra/sam/samconfig.toml`
+  - `.github/workflows/ci.yml`
+  - `.github/workflows/deploy.yml`
 
-## 2단계에서 아직 미루는 것
-- 실제 소셜 로그인 검증
-- 실제 사용자/도메인 비즈니스 로직
-- SAM 템플릿 상세와 GitHub Actions 구현
-- RDS Proxy 연동
-- Secrets Manager 실사용 연동
+## 3단계에서 바로 결정해도 되는 것
+- API Gateway는 계속 `HTTP API`로 간다.
+- SAM 템플릿은 `Transform: AWS::Serverless-2016-10-31` 기준으로 간다.
+- Lambda runtime은 `nodejs24.x`
+- Lambda architecture는 `arm64`
+- TypeScript 빌드는 `esbuild`
+- SAM 템플릿 공통값은 `Globals`로 최대한 모은다.
+- CI와 deploy workflow는 분리한다.
+- AWS 인증은 장기 액세스 키보다 GitHub OIDC + role assume을 우선한다.
 
-## 이번 단계에서 추가할 패키지
+## 3단계에서 아직 미루는 것
+- 실제 도메인 API 라우트 전체 연결
+- JWT authorizer 상세 설계
+- Secrets Manager 런타임 fetch 구현
+- RDS Proxy 실제 연결
+- 스테이징/운영 외의 복잡한 다중 환경 전략
+- canary, alarms, auto rollback 같은 고급 배포 전략
 
-### 런타임 의존성
-- `zod`
-- `mysql2`
+## 공식 자료 기준 핵심 사실
 
-### 추가 라이브러리를 당장 넣지 않아도 되는 영역
-- 로거는 외부 라이브러리 없이 `console` 기반 구조화 로그로 시작해도 충분하다.
-- 라우터 프레임워크는 도입하지 않는다.
-- 테스트 러너는 `Node.js 24`의 내장 `node:test`를 우선 검토할 수 있다.
+### 1. Lambda 런타임
+- AWS Lambda는 `Node.js 24`를 `nodejs24.x`로 공식 지원한다.
+- 운영체제는 `Amazon Linux 2023`다.
+- 현재 문서 기준에서 `nodejs24.x` 선택은 맞다.
 
-## 권장 파일 목록
-- `src/shared/env/server.ts`
-- `src/shared/db/pool.ts`
-- `src/shared/db/tx.ts`
-- `src/shared/api/errors.ts`
-- `src/shared/api/response.ts`
-- `src/shared/api/route.ts`
-- `src/shared/auth/guard.ts`
-- `src/shared/logger/logger.ts`
-- `src/shared/geo/distance.ts`
-- `src/shared/validation/parse.ts`
+### 2. SAM 템플릿의 공통 구성
+- AWS SAM 템플릿은 `Globals` 섹션으로 `AWS::Serverless::Function`과 `AWS::Serverless::HttpApi` 같은 리소스의 공통 속성을 상속시킬 수 있다.
+- 3단계에서는 `Runtime`, `Architectures`, `Timeout`, `MemorySize`, `Environment`, `LoggingConfig` 같은 중복 속성을 `Globals.Function`으로 모으는 편이 적절하다.
 
-## 모듈별 조사 결과
+### 3. `AWS::Serverless::HttpApi`
+- `AWS::Serverless::HttpApi`는 `AccessLogSettings`, `Auth`, `DefaultRouteSettings`, `RouteSettings`, `StageName`, `PropagateTags` 등을 가진다.
+- `AccessLogSettings`는 API stage access log 설정이다.
+- `PropagateTags: true`를 주면 태그가 생성 리소스에 전파된다.
 
-### 1. 환경변수 파서
+### 4. Function의 `HttpApi` 이벤트
+- `AWS::Serverless::Function`의 `Events`에서 `Type: HttpApi`를 선언할 수 있다.
+- `Path`, `Method`, `ApiId`, `PayloadFormatVersion`, `RouteSettings`를 줄 수 있다.
+- `PayloadFormatVersion`의 기본값은 `2.0`이다.
+- `Path`와 `Method`를 생략하면 default route가 생기므로, SteelArt는 도메인별 명시 라우트를 쓰는 편이 안전하다.
 
-#### 필요한 이유
-- Lambda 환경변수는 런타임에서 문자열로 들어오므로 애플리케이션 시작 시점에 한 번 파싱하고 고정하는 편이 안전하다.
-- 2단계부터 `DB_PORT`, `APP_ENV`, `JWT_SECRET` 같은 값의 누락 여부를 조기에 잡아야 한다.
+### 5. TypeScript + esbuild
+- AWS SAM은 Node.js Lambda를 `esbuild`로 빌드할 수 있다.
+- `AWS::Serverless::Function` 리소스에 `Metadata`를 두고 `BuildMethod: esbuild`를 지정하면 된다.
+- AWS 공식 예시도 `Environment.Variables.NODE_OPTIONS: --enable-source-maps`를 함께 둔다.
 
-#### 구현 기준
-- `process.env`를 입력으로 받고 `zod`로 검증한다.
-- `DB_PORT`는 문자열 입력을 숫자로 coercion 한다.
-- 결과는 `env` singleton으로 export 한다.
-- 파싱 실패 시 즉시 예외를 던져 cold start 단계에서 잘못된 설정을 드러낸다.
+### 6. `samconfig.toml`
+- `samconfig.toml`은 SAM CLI 설정 파일이다.
+- SAM CLI는 `template.yaml` 위치를 기준으로 `samconfig.toml`을 찾는다.
+- `--config-file` 값도 template 위치를 기준으로 해석된다.
+- 따라서 이 프로젝트에서는 `infra/sam/template.yaml`과 `infra/sam/samconfig.toml`을 같은 디렉터리에 두는 편이 가장 단순하다.
 
-#### 초기 키 제안
+### 7. `sam validate`
+- `sam validate`는 템플릿이 유효한지 검사한다.
+- `--lint` 옵션으로 `cfn-lint`를 통한 추가 검증을 수행할 수 있다.
+- AWS 공식 문서상 `sam validate`는 AWS credentials configured 상태를 요구한다.
+
+### 8. `sam build`
+- `sam build`는 이후 `sam deploy`에 사용될 빌드 결과물을 준비한다.
+- `--base-dir`로 code path 해석 기준을 바꿀 수 있지만, 현재 구조에서는 template 기준 상대 경로를 명확히 잡는 쪽이 더 단순하다.
+- 캐시 빌드는 가능하지만 3단계 초안에서는 옵션을 단순하게 유지하는 편이 좋다.
+
+### 9. `sam deploy`
+- 첫 배포는 `sam deploy --guided`로 설정값을 만들고, 이후에는 `sam deploy`로 간다.
+- 설정값은 `samconfig.toml`에 저장된다.
+- CI 배포에서는 보통 `--no-confirm-changeset`와 `--no-fail-on-empty-changeset`를 함께 쓴다.
+- IAM 리소스가 포함되면 `CAPABILITY_IAM` 또는 `CAPABILITY_NAMED_IAM`가 필요하다.
+
+### 10. GitHub Actions 기본 문법
+- workflow 파일은 `.github/workflows` 아래에 둬야 한다.
+- `on`으로 `push`, `pull_request`, `workflow_dispatch` 등을 정의한다.
+- branch/path filter를 함께 걸 수 있다.
+- action은 SHA, version tag, branch로 지정할 수 있지만, GitHub는 commit SHA pinning이 가장 안전하다고 권장한다.
+
+### 11. GitHub OIDC + AWS
+- GitHub Docs와 AWS 공식 action README 모두 OIDC를 권장한다.
+- deploy workflow는 `permissions.id-token: write`가 필요하다.
+- `contents: read`는 checkout에 필요하다.
+- GitHub OIDC provider는 `https://token.actions.githubusercontent.com`
+- audience는 공식 action 기준 `sts.amazonaws.com`
+- trust policy에는 `token.actions.githubusercontent.com:sub` 조건을 넣어 어떤 repo/branch/workflow가 role을 assume할 수 있는지 제한하는 게 권장된다.
+
+### 12. GitHub Actions에서 Node / pnpm / SAM
+- `actions/setup-node`는 `node-version: 24`를 명시하는 걸 권장한다.
+- `actions/setup-node`는 `pnpm` cache도 지원한다.
+- `pnpm/action-setup`은 pnpm 설치용이고 Node 설치는 따로 하지 않는다.
+- `aws-actions/setup-sam`은 SAM CLI를 설치하고 PATH에 넣는다.
+- `aws-actions/setup-sam` README 예시도 `setup-sam` 이후 `configure-aws-credentials`와 `sam build`, `sam deploy` 순서를 사용한다.
+
+## 이 단계에서 필요한 구체적 산출물
+
+### 1. `infra/sam/template.yaml`
+
+#### 꼭 들어가야 하는 상위 구조
+- `AWSTemplateFormatVersion`
+- `Transform: AWS::Serverless-2016-10-31`
+- `Description`
+- `Parameters`
+- `Globals`
+- `Resources`
+- `Outputs`
+
+#### `Parameters` 권장안
+- `StageName`
+- `AppName`
+- `AwsRegion` 또는 region은 런타임에서 환경변수로만 처리
+- `DbHost`
+- `DbPort`
+- `DbName`
+- `DbUser`
+- `DbPasswordSecretArn` 또는 임시 plain env placeholder
+- `JwtSecretArn` 또는 임시 plain env placeholder
+
+#### 3단계에서의 현실적인 권장안
+- 3단계는 CI/CD skeleton이 우선이므로, `Secrets Manager` ARN을 parameter로 받는 구조만 먼저 열어두고 실제 secret fetch는 4단계 이후에 미뤄도 된다.
+- 즉, template에는 환경 변수 wiring까지만 넣고, 런타임 secret retrieval은 아직 구현하지 않아도 된다.
+
+#### `Globals.Function` 권장안
+- `Runtime: nodejs24.x`
+- `Architectures: [arm64]`
+- `Timeout`
+- `MemorySize`
+- `Environment.Variables`
+  - `APP_ENV`
+  - `AWS_REGION`
+  - `NODE_OPTIONS: --enable-source-maps`
+  - DB / auth 관련 키
+- `LoggingConfig`
+- 필요 시 `Tags`
+
+#### `Globals.HttpApi`를 따로 둘지 여부
+- AWS SAM `Globals`는 `AWS::Serverless::HttpApi`도 지원한다.
+- 다만 지금 구조에서는 `HttpApi` 리소스가 하나일 가능성이 높아서, 별도 `Globals.HttpApi`보다 `Resources.HttpApi.Properties`에서 직접 선언해도 충분하다.
+
+### 2. `AWS::Serverless::HttpApi` 리소스
+
+#### 3단계에서 추천하는 최소 속성
+- `Name`
+- `StageName`
+- `AccessLogSettings`
+- `DefaultRouteSettings`
+- `PropagateTags: true`
+- `Tags`
+
+#### `AccessLogSettings`에 필요한 것
+- 별도 `AWS::Logs::LogGroup`
+- `DestinationArn`
+- `Format`
+
+#### access log format에 포함하면 좋은 값
+- `$context.requestId`
+- `$context.httpMethod`
+- `$context.routeKey`
+- `$context.status`
+- `$context.responseLength`
+- `$context.identity.sourceIp`
+
+#### `StageName` 선택
+- 3단계 초안에서는 `dev` 또는 parameter 기반이 무난하다.
+- production까지 바로 엮지 않는다면 `StageName`은 parameter화하는 편이 이후 재사용성이 높다.
+
+### 3. 도메인 Lambda 리소스 골격
+
+#### 3단계에서 필요한 리소스
+- `AuthFunction`
+- `UsersFunction`
+- `HomeFunction`
+- `SearchFunction`
+- `ArtworksFunction`
+- `MapFunction`
+- `CoursesFunction`
+
+#### 각 함수에 공통으로 필요한 것
+- `Type: AWS::Serverless::Function`
+- `CodeUri`
+- `Handler`
+- `Events`
+- `Metadata.BuildMethod: esbuild`
+
+#### `CodeUri` 전략
+- 현재 코드베이스는 루트 `src/` 아래에 모든 코드가 있다.
+- SAM은 template 기준 상대 경로를 쓰므로 `../../src` 같은 형태가 될 수 있다.
+- 이 경로는 장기적으로 읽기 불편하므로, 3단계에서는 다음 둘 중 하나를 선택해야 한다.
+  1. template 기준 상대 경로를 그대로 사용
+  2. root script에서 `--base-dir`를 사용
+- 현재 구조와 단순성을 기준으로 보면 `template.yaml`에서 명시 경로를 쓰는 쪽이 먼저 낫다.
+
+#### `Handler` 전략
+- 현재 핸들러 위치:
+  - `src/lambdas/auth/handler.ts`
+  - `src/lambdas/users/handler.ts`
+  - 나머지는 아직 `.gitkeep`만 있음
+- 3단계에서는 나머지 도메인 핸들러 파일도 placeholder라도 실제 `handler.ts`를 만들어야 `sam build`가 깨지지 않는다.
+- 이건 로컬 문서와 현재 코드 상태를 바탕으로 한 구현 추론이다.
+
+#### `Metadata` 권장안
+- `BuildMethod: esbuild`
+- `BuildProperties`
+  - `EntryPoints`
+  - `Minify: false`
+  - `Target: es2022`
+  - `Sourcemap: true`
+  - `Format: esm`
+  - `OutExtension`
+  - `External`
+
+#### `Format: esm` 선택 이유
+- 현재 `package.json`이 `"type": "module"`이다.
+- 따라서 Lambda 핸들러 번들도 ESM 전제를 유지하는 쪽이 충돌이 적다.
+- 이 부분은 현재 저장소 설정을 바탕으로 한 구현 판단이다.
+
+### 4. 환경 변수 wiring
+
+#### 3단계에서 wiring 해야 하는 값
 - `APP_ENV`
 - `AWS_REGION`
 - `DB_HOST`
@@ -80,276 +252,229 @@
 - `DB_USER`
 - `DB_PASSWORD`
 - `JWT_SECRET`
-- 선택:
-  - `LOG_LEVEL`
-  - `DB_SSL_CA_PATH`
+- `LOG_LEVEL`
 
-#### 메모
-- AWS는 비밀값에 일반 환경변수 대신 `Secrets Manager` 사용을 권장한다. 다만 현재 단계에서는 인터페이스를 먼저 고정하고, 실제 secret sourcing은 뒤 단계에서 바꿔도 된다.
-- `Node.js`는 `process.env`를 기본 환경변수 인터페이스로 제공한다.
+#### Secrets handling 방향
+- 문서 기준 목표는 `Secrets Manager`지만, 3단계는 skeleton이다.
+- 따라서 3단계 구현 방식은 둘 중 하나다.
+  1. deploy parameter로 바로 environment variables 주입
+  2. secret ARN만 주입하고 런타임 구현은 나중 단계
+- 3단계 목표가 `sam validate/build/deploy skeleton`인 점을 감안하면, 먼저 1번으로 움직이고 4단계 이후 2번으로 전환하는 게 가장 빠르다.
+- 이건 source를 바탕으로 한 구현 전략 추론이다.
 
-### 2. DB pool 유틸
+### 5. IAM / Logs
 
-#### 필요한 이유
-- 이후 모든 repository가 같은 연결 정책을 재사용해야 한다.
-- Lambda에서 요청마다 새 연결 설정 코드를 반복하면 코드가 쉽게 흩어진다.
+#### 3단계에서 필요한 최소 IAM
+- Lambda execution role
+- CloudWatch Logs 쓰기
+- 이후 비밀값, DB, X-Ray 접근은 별도 확장
 
-#### 구현 기준
-- `mysql2/promise`의 `createPool`을 사용한다.
-- pool은 모듈 스코프 singleton으로 만들고 재사용한다.
-- 기본 옵션 후보:
-  - `waitForConnections: true`
-  - `connectionLimit`: 작은 값으로 시작
-  - `queueLimit: 0`
-  - `enableKeepAlive: true`
-- SQL 실행은 기본적으로 `execute`를 우선 사용한다.
+#### 실전 주의
+- template에 IAM 리소스가 포함되면 deploy command에 capability 설정이 필요하다.
+- custom role names를 넣으면 `CAPABILITY_NAMED_IAM`가 필요할 수 있다.
+- 처음에는 SAM이 생성하는 role에 최소 정책만 붙이는 편이 단순하다.
 
-#### Lambda 관점 메모
-- AWS Lambda는 실행 환경 재사용을 권장하므로 DB 연결 객체도 핸들러 바깥에서 재사용하는 쪽이 맞다.
-- Node.js Lambda는 keep-alive 사용을 권장한다.
-- Node.js 20 이상 Lambda는 추가 CA 인증서를 자동 로드하지 않으므로, RDS SSL을 강제할 경우 CA 번들 경로를 명시적으로 다뤄야 한다.
+#### 로그 설정
+- Function level: `LoggingConfig`
+- API level: `HttpApi.AccessLogSettings`
+- 둘은 역할이 다르므로 둘 다 두는 편이 좋다.
 
-#### 2단계에서 필요한 최소 API
-- `getPool()`
-- `withConnection(fn)`
-- 선택:
-  - `closePool()` for tests only
+## `samconfig.toml` 설계 포인트
 
-### 3. 트랜잭션 유틸
+### 파일 위치
+- `infra/sam/samconfig.toml`
+- `template.yaml`과 같은 디렉터리에 둔다.
 
-#### 필요한 이유
-- 이후 코스 생성/수정, 좋아요 토글, 체크인 같은 write API에서 트랜잭션 경계가 필요하다.
-- 서비스 계층이 매번 `beginTransaction`, `commit`, `rollback`, `release`를 직접 반복하지 않도록 해야 한다.
+### 이유
+- AWS 공식 문서상 config file은 template 위치 기준으로 해석된다.
+- 같은 디렉터리에 두면 root script와 CI에서 path 혼동이 가장 적다.
 
-#### 구현 기준
-- pool에서 connection을 받아 `beginTransaction` 후 callback을 실행한다.
-- 성공 시 `commit`, 실패 시 `rollback`, 마지막에 항상 `release`.
-- callback 반환값을 그대로 반환한다.
+### environment 이름 권장안
+- `default`
+- `dev`
+- `prod`
 
-#### 2단계에서 필요한 최소 API
-- `withTransaction<T>(fn: (connection) => Promise<T>): Promise<T>`
+### 3단계에서 넣어둘 만한 값
+- `stack_name`
+- `s3_bucket`
+- `s3_prefix`
+- `region`
+- `capabilities`
+- `confirm_changeset = false`
+- `fail_on_empty_changeset = false`
+- `resolve_s3 = true` 여부
 
-### 4. 공통 에러 타입 / 에러 코드
+### 주의
+- 계정/버킷 이름처럼 환경별 민감한 운영값을 저장할지 여부는 팀 정책 문제다.
+- 이 저장소는 공개 GitHub 저장소이므로, secret은 넣지 않되 non-secret deploy config만 넣는 편이 안전하다.
 
-#### 필요한 이유
-- 응답 포맷과 로깅이 일관되려면 애플리케이션 오류를 공통 타입으로 올리는 편이 낫다.
-- 아직 도메인 API가 없더라도 인증 실패, 검증 실패, not found, method not allowed 같은 공통 오류는 지금 고정할 수 있다.
+## GitHub Actions 설계 포인트
 
-#### 2단계에서 고정할 최소 코드
-- `BAD_REQUEST`
-- `UNAUTHORIZED`
-- `FORBIDDEN`
-- `NOT_FOUND`
-- `METHOD_NOT_ALLOWED`
-- `VALIDATION_ERROR`
-- `CONFLICT`
-- `INTERNAL_ERROR`
+### `ci.yml`
 
-#### 구현 기준
-- `AppError` 같은 공통 클래스 하나로 시작한다.
-- 필드 권장안:
-  - `code`
-  - `message`
-  - `statusCode`
-  - `details`
-- domain-specific code는 나중 단계에서 추가한다.
+#### 목적
+- PR과 branch push에서 quality gate 수행
 
-#### 메모
-- 2단계에서는 공통 코드만 정의하고, 체크인 거리 실패 같은 도메인 코드는 6단계 이후에 붙이는 편이 낫다.
+#### 추천 trigger
+- `pull_request`:
+  - `main`
+- `push`:
+  - `main`
+  - 필요 시 `codex/**`
 
-### 5. 공통 응답 유틸
+#### path filter 후보
+- `src/**`
+- `infra/sam/**`
+- `.github/workflows/**`
+- `package.json`
+- `pnpm-lock.yaml`
+- `tsconfig.json`
 
-#### 필요한 이유
-- 루트 API 초안에서 `{ data, meta, error }` 형태를 이미 제안하고 있다.
-- 도메인별 핸들러가 각자 응답 모양을 만들면 계약이 쉽게 흔들린다.
+#### 추천 단계
+1. checkout
+2. setup node 24
+3. setup pnpm
+4. install
+5. typecheck
+6. test
+7. setup sam
+8. sam build
+9. 필요 시 sam validate
 
-#### 구현 기준
-- 성공 응답 helper:
-  - `ok(data, meta?)`
-- 실패 응답 helper:
-  - `fail(appError, meta?)`
-- HTTP API v2 응답은 명시적으로 `statusCode`, `headers`, `body`를 반환한다.
-- `content-type`은 `application/json; charset=utf-8`로 고정한다.
+#### 중요한 주의
+- AWS 공식 문서상 `sam validate`는 AWS credentials configured를 요구한다.
+- 따라서 PR CI에서 OIDC를 쓰지 않을 계획이면 `ci.yml`은 `sam build`까지만 하고, `sam validate`는 deploy workflow로 보내는 구성이 현실적이다.
+- 반대로 PR CI에도 OIDC를 줄 수 있다면 `sam validate --lint`까지 포함 가능하다.
+- 이건 공식 문서의 credential requirement를 바탕으로 한 운영 추론이다.
 
-#### 왜 명시적 응답이 필요한가
-- AWS 문서상 payload format 2.0에서는 `statusCode` 없이 JSON을 반환해도 자동 추론이 가능하다.
-- 그래도 공통 유틸은 항상 명시형 응답을 만들도록 두는 편이 테스트와 디버깅에 유리하다.
+### `deploy.yml`
 
-### 6. request id / logger 유틸
+#### 목적
+- trusted branch 기준 AWS 배포
 
-#### 필요한 이유
-- 인증, DB, 라우트, 에러를 묶어서 볼 때 공통 request id가 없으면 Lambda 로그 추적이 불편하다.
-- `2단계`에서 이 기반을 잡아야 이후 도메인 로그가 같은 형식으로 쌓인다.
+#### 추천 trigger
+- `push` on `main`
+- `workflow_dispatch`
 
-#### request id 기준
-- 1순위: `event.requestContext.requestId`
-- 2순위: `context.awsRequestId`
+#### 권한
+- `permissions`
+  - `contents: read`
+  - `id-token: write`
 
-#### 구현 기준
-- `createLogger(baseContext)` 형태의 작은 유틸로 시작한다.
-- 출력은 JSON 객체 한 줄로 고정한다.
-- 권장 필드:
-  - `level`
-  - `message`
-  - `requestId`
-  - `path`
-  - `method`
-  - `domain`
-  - `timestamp`
-  - `extra`
+#### 추천 단계
+1. checkout
+2. setup node 24
+3. setup pnpm
+4. install
+5. setup sam
+6. configure aws credentials by OIDC
+7. sam validate
+8. sam build
+9. sam deploy
 
-#### 메모
-- Lambda는 `console.log`, `console.error` 출력을 CloudWatch Logs로 보낸다.
-- 현재 단계에서는 외부 logger 패키지보다 구조화 포맷만 고정하는 쪽이 더 중요하다.
+#### deploy command 권장 옵션
+- `--config-env <env>`
+- `--no-confirm-changeset`
+- `--no-fail-on-empty-changeset`
+- 필요 시 `--capabilities CAPABILITY_IAM`
 
-### 7. 공통 라우트 헬퍼
+### Action 선택 기준
+- `actions/checkout`
+- `actions/setup-node`
+- `pnpm/action-setup`
+- `aws-actions/setup-sam`
+- `aws-actions/configure-aws-credentials`
 
-#### 필요한 이유
-- 이 서버는 도메인별 Lambda 구조를 쓰므로, 각 핸들러 안에서 메서드/세그먼트 분기 정도는 반복된다.
-- 하지만 라우팅 프레임워크까지 넣을 정도는 아니므로, HTTP API 이벤트를 정규화하는 작은 헬퍼가 적절하다.
+### 보안 기준
+- GitHub Docs는 action을 SHA로 pin하는 것이 가장 안전하다고 권장한다.
+- 3단계 구현에서는 적어도 major version 또는 SHA pinning 전략을 명시해야 한다.
 
-#### HTTP API v2에서 꼭 알아야 할 점
-- 이벤트 버전은 `2.0` 형식이다.
-- `rawPath`, `rawQueryString`, `cookies`, `requestContext.http.method` 등을 사용한다.
-- 중복 query string 값은 payload format 2.0에서 쉼표로 합쳐질 수 있다.
+## 이 저장소에 맞는 권장 명령 형태
 
-#### SteelArt에 중요한 해석
-- `placeId=1&placeId=2` 같은 반복 쿼리는 이후 `artworks` 필터에서 반드시 필요하다.
-- 따라서 route/query helper는 단일 값 getter 외에 `getQueryList()` 같은 다중 값 해석기를 가져야 한다.
-- 이 부분은 AWS 문서의 payload 2.0 동작을 SteelArt 필터 규칙에 맞게 적용한 추론이다.
+### 로컬
+- `pnpm install`
+- `pnpm typecheck`
+- `pnpm test`
+- `sam validate --template-file infra/sam/template.yaml --config-file samconfig.toml`
+- `sam build --template-file infra/sam/template.yaml --config-file samconfig.toml`
 
-#### 2단계에서 필요한 최소 기능
-- method 추출
-- path 추출
-- path segment 추출
-- query 단일 값 추출
-- query 다중 값 추출
-- JSON body 파싱
-- route miss 시 `METHOD_NOT_ALLOWED`, `NOT_FOUND` 응답 연결
+### 최초 수동 배포
+- `sam deploy --guided --template-file infra/sam/template.yaml --config-file samconfig.toml`
 
-### 8. auth guard 기본 구조
+### CI/CD 배포
+- `sam deploy --template-file infra/sam/template.yaml --config-file samconfig.toml --config-env <env> --no-confirm-changeset --no-fail-on-empty-changeset`
 
-#### 필요한 이유
-- 실제 로그인 API는 4단계에 구현되지만, 보호 라우트가 사용할 guard 인터페이스는 2단계에서 미리 정하는 편이 낫다.
-- 그렇지 않으면 `auth`, `users`, `courses` 도메인이 각자 인증 체크 방식을 만들게 된다.
+## 3단계 구현 시 예상되는 결정 포인트
 
-#### 2단계에서 해야 할 최소 구현
-- `Authorization` 헤더에서 Bearer 토큰 추출
-- 토큰 없음 -> `UNAUTHORIZED`
-- guard 인터페이스와 `AuthContext` 타입 정의
-- 미래의 토큰 검증 함수를 연결할 자리 마련
+### 1. `sam validate`를 CI에 넣을지
+- 넣는다:
+  - OIDC 또는 AWS credentials가 CI에도 필요
+- 안 넣는다:
+  - PR CI는 `typecheck/test/sam build`
+  - deploy workflow에서 `sam validate`
 
-#### 2단계에서 하지 않을 것
-- 카카오/애플 토큰 검증
-- 사용자 조회까지 포함한 실제 인증 완성
-- refresh token 정책
+### 2. deploy workflow의 환경 수
+- 최소:
+  - `dev`
+  - `prod`
+- skeleton 단계에서는 `dev` 한 개만 먼저 열어도 된다.
 
-#### 권장 인터페이스
-- `getBearerToken(headers)`
-- `requireAuth(event, context?)`
-- `optionalAuth(event, context?)`
+### 3. placeholder handler 추가 여부
+- `sam build`를 확실히 통과시키려면 모든 함수 logical resource가 참조하는 실제 `handler.ts` 파일이 존재해야 한다.
+- 따라서 3단계에서 미구현 도메인에도 최소 placeholder handler 파일을 추가할 가능성이 높다.
 
-### 9. geo distance 유틸
+### 4. IAM role naming
+- custom named role을 만들면 capability와 운영 복잡도가 올라간다.
+- 3단계 skeleton은 자동 생성 role이 더 단순하다.
 
-#### 필요한 이유
-- 지도 거리 계산과 체크인 반경 계산을 서로 다른 코드로 구현하면 같은 좌표인데 결과가 달라질 수 있다.
-- 현재 문서 기준으로 거리 규칙은 공통 모듈로 빼는 것이 맞다.
+## 3단계에서 피해야 할 실수
+- `AWS::Serverless::Api`로 다시 돌아가는 것
+- `HttpApi` default route를 실수로 여러 함수에 두는 것
+- template와 samconfig를 다른 디렉터리에 두고 path 해석을 혼동하는 것
+- CI workflow에 `id-token: write`를 전역으로 남발하는 것
+- 배포 workflow에 long-lived AWS key를 secret으로 넣는 것
+- `sam validate` credential requirement를 무시하고 PR CI를 불안정하게 만드는 것
+- `main` push와 PR workflow의 역할을 섞어버리는 것
 
-#### 구현 기준
-- 입력:
-  - `lat`
-  - `lng`
-- 출력:
-  - 미터 단위 숫자
-- 권장 함수:
-  - `calculateDistanceMeters(from, to)`
-  - `isWithinRadiusMeters(from, to, radiusMeters)`
+## 3단계에서 권장하는 구현 순서
+1. `infra/sam/template.yaml`
+2. placeholder handler가 없는 도메인 Lambda 파일 추가
+3. `infra/sam/samconfig.toml`
+4. 루트 `package.json`의 `sam:*` 스크립트를 실제 명령으로 교체
+5. `.github/workflows/ci.yml`
+6. `.github/workflows/deploy.yml`
+7. `sam validate`
+8. `sam build`
 
-#### 검증 포인트
-- 동일 좌표 -> `0`
-- 반경 경계 근처 -> 오차 허용 범위 확인
-- 위도/경도 범위 외 값 -> 즉시 예외
-
-#### 메모
-- 체크인 허용 오차 정책 자체는 아직 확정되지 않았으므로, 2단계에서는 순수 거리 계산 함수까지만 만드는 편이 맞다.
-
-### 10. validation parse 유틸
-
-#### 필요한 이유
-- 모든 라우트에서 `schema.parse()`와 에러 포맷팅을 중복 작성하면 금방 반복이 심해진다.
-- `zod` 에러를 공통 `AppError`로 바꾸는 접점이 필요하다.
-
-#### 구현 기준
-- `safeParse`를 우선 사용한다.
-- 실패 시 `ZodError`를 `VALIDATION_ERROR`로 감싼다.
-- field-level error는 `flattenError` 또는 동등한 포맷으로 내려주면 이후 앱 디버깅에 유리하다.
-
-## 2단계 구현 순서 제안
-1. `zod`, `mysql2` 설치
-2. `shared/api/errors.ts`
-3. `shared/validation/parse.ts`
-4. `shared/env/server.ts`
-5. `shared/logger/logger.ts`
-6. `shared/api/response.ts`
-7. `shared/db/pool.ts`
-8. `shared/db/tx.ts`
-9. `shared/api/route.ts`
-10. `shared/auth/guard.ts`
-11. `shared/geo/distance.ts`
-12. `auth`, `users` placeholder handler 중 하나를 공통 유틸 예제로 갱신
-
-## 2단계 검증 기준을 코드로 바꾸면 필요한 항목
-
-### import / 타입
-- `pnpm typecheck` 통과
-- shared 모듈 간 순환 참조 없음
-
-### 응답 유틸
-- 성공/실패 응답이 모두 `{ data, meta, error }`를 유지
-- `statusCode`, `headers`, `body`가 명시적으로 들어감
-
-### DB 유틸
-- pool singleton 생성
-- connection acquire / release 정상 동작
-- transaction success 시 commit
-- failure 시 rollback 후 release
-
-### logger / request id
-- HTTP API 이벤트가 있으면 `requestContext.requestId` 사용
-- 없으면 `awsRequestId` fallback
-
-### route helper
-- method/path 추출 정상 동작
-- comma-separated query list 분해 동작
-- JSON body parse 실패 시 `BAD_REQUEST` 또는 `VALIDATION_ERROR`
-
-### geo
-- 동일 좌표 0m 테스트 통과
-- 기본 반경 포함 여부 테스트 통과
-
-## 주의할 점
-- `HTTP API` payload 2.0은 multi-value query string 전용 필드가 없다.
-- 따라서 반복 쿼리를 단순 `queryStringParameters[name]`만 읽으면 SteelArt 필터 요구사항을 놓칠 수 있다.
-- Lambda에서 DB pool을 요청마다 새로 만들지 않는다.
-- `pool.end()`는 일반 요청 흐름에서 호출하지 않는다.
-- 공통 런타임 단계에서 도메인 로직을 섞지 않는다.
-- logger에 raw token, password, 전체 user payload를 그대로 찍지 않는다.
-
-## 남아 있는 확인 포인트
-- 실제 앱 토큰 포맷을 JWT로 바로 갈지, 4단계에서 더 정교하게 정할지
-- RDS SSL 연결을 stage 2에서 바로 반영할지, stage 3 인프라 단계에서 묶을지
-- validation error의 `details`를 앱에 어느 정도까지 노출할지
+## 3단계 완료 조건을 코드/운영 기준으로 풀어쓰면
+- `infra/sam/template.yaml`이 존재한다.
+- `AWS::Serverless::HttpApi`가 명시적으로 선언되어 있다.
+- 도메인 Lambda 리소스가 template에 골격으로 선언되어 있다.
+- `nodejs24.x`, `arm64`, `esbuild`가 template 기준으로 반영되어 있다.
+- `infra/sam/samconfig.toml`이 template 기준 경로와 맞게 배치되어 있다.
+- `ci.yml`, `deploy.yml`이 문법상 유효하다.
+- `sam validate`가 통과한다.
+- `sam build`가 통과한다.
 
 ## 공식 참고 자료
-- AWS Lambda Node.js: [Building Lambda functions with Node.js](https://docs.aws.amazon.com/lambda/latest/dg/lambda-nodejs.html)
-- AWS Lambda 환경변수: [Working with Lambda environment variables](https://docs.aws.amazon.com/lambda/latest/dg/configuration-envvars.html)
-- AWS Lambda context: [Using the Lambda context object](https://docs.aws.amazon.com/lambda/latest/dg/nodejs-context.html)
-- API Gateway HTTP API Lambda payload v2.0: [Create AWS Lambda proxy integrations for HTTP APIs](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-lambda.html)
-- Node.js 환경변수: [Environment Variables](https://nodejs.org/api/environment_variables.html)
-- Node.js 테스트 러너: [Test runner](https://nodejs.org/api/test.html)
-- mysql2 문서: [MySQL2 Documentation](https://sidorares.github.io/node-mysql2/)
-- zod 기본 사용: [Zod Basics](https://zod.dev/basics)
-- zod 에러 포맷: [Formatting errors](https://zod.dev/error-formatting)
+- AWS Lambda Node.js runtime: [Building Lambda functions with Node.js](https://docs.aws.amazon.com/lambda/latest/dg/lambda-nodejs.html)
+- AWS SAM HttpApi resource: [AWS::Serverless::HttpApi](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-httpapi.html)
+- AWS SAM Function HttpApi event: [HttpApi property for Function](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-property-function-httpapi.html)
+- AWS SAM Function resource: [AWS::Serverless::Function](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html)
+- AWS SAM Globals: [Globals section of the AWS SAM template](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-specification-template-anatomy-globals.html)
+- AWS SAM TypeScript + esbuild: [Building Node.js Lambda functions with esbuild in AWS SAM](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-using-build-typescript.html)
+- AWS SAM config file: [AWS SAM CLI configuration file](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-config.html)
+- AWS SAM validate: [sam validate](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-validate.html)
+- AWS SAM validate overview: [Validate AWS SAM template files](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-using-validate.html)
+- AWS SAM build: [sam build](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-build.html)
+- AWS SAM deploy overview: [Introduction to deploying with AWS SAM](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/using-sam-cli-deploy.html)
+- AWS SAM deploy reference: [sam deploy](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-deploy.html)
+- GitHub Actions workflow syntax: [Workflow syntax for GitHub Actions](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax)
+- GitHub OIDC with AWS: [Configuring OpenID Connect in Amazon Web Services](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws)
+- `aws-actions/setup-sam`: [setup-sam README](https://github.com/aws-actions/setup-sam)
+- `aws-actions/configure-aws-credentials`: [configure-aws-credentials README](https://github.com/aws-actions/configure-aws-credentials)
+- `actions/setup-node`: [setup-node README](https://github.com/actions/setup-node)
+- `pnpm/action-setup`: [pnpm action setup README](https://github.com/pnpm/action-setup)
 
 ## 한 줄 결론
-- 2단계는 `shared` 레이어의 인터페이스를 굳히는 단계이며, 특히 `HTTP API v2 query 처리`, `Lambda 재사용 가능한 DB pool`, `zod 기반 env/validation`, `request id가 포함된 구조화 로그`를 먼저 제대로 잡는 것이 핵심이다.
+- 3단계의 핵심은 “`shared` 기반 위에 `SAM template + samconfig + CI workflow + OIDC deploy workflow`를 최소하지만 실제 배포 가능한 형태로 연결하는 것”이며, 특히 `HttpApi 명시 라우트`, `template와 samconfig의 같은 디렉터리 배치`, `deploy job만 OIDC 권한 부여`, `sam validate credential requirement`를 먼저 정확히 잡는 것이 중요하다.

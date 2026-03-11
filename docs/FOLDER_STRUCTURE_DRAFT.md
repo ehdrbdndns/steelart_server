@@ -201,6 +201,11 @@ steelart_server/
 - `src/shared/validation/parse.ts`
 - `src/lambdas/auth/handler.ts`
 - `src/lambdas/users/handler.ts`
+- `src/lambdas/home/handler.ts`
+- `src/lambdas/search/handler.ts`
+- `src/lambdas/artworks/handler.ts`
+- `src/lambdas/map/handler.ts`
+- `src/lambdas/courses/handler.ts`
 
 ## 첫날 필요하지 않은 파일
 - 업로드 전용 모듈
