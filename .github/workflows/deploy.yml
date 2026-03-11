@@ -1,0 +1,98 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/**'
+      - 'infra/sam/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'src/**'
+      - 'tests/**'
+      - 'tsconfig.json'
+  workflow_dispatch:
+    inputs:
+      sam_config_env:
+        description: samconfig environment to deploy
+        required: false
+        default: dev
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  APP_NAME: ${{ vars.APP_NAME || 'steelart-server' }}
+  APPLE_CLIENT_ID: ${{ vars.APPLE_CLIENT_ID || '' }}
+  AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+  AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
+  DB_HOST: ${{ vars.DB_HOST || 'localhost' }}
+  DB_NAME: ${{ vars.DB_NAME || 'steelart' }}
+  DB_PORT: ${{ vars.DB_PORT || '3306' }}
+  DB_USER: ${{ vars.DB_USER || 'steelart' }}
+  KAKAO_CLIENT_ID: ${{ vars.KAKAO_CLIENT_ID || '' }}
+  LOG_LEVEL: ${{ vars.LOG_LEVEL || 'info' }}
+  SAM_CONFIG_ENV: ${{ inputs.sam_config_env || vars.SAM_CONFIG_ENV || 'dev' }}
+  STAGE_NAME: ${{ vars.STAGE_NAME || 'dev' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          cache: pnpm
+          node-version: 24
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup SAM CLI
+        uses: aws-actions/setup-sam@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+
+      - name: Validate SAM template
+        run: sam validate --template-file infra/sam/template.yaml --config-file samconfig.toml --config-env "${SAM_CONFIG_ENV}"
+
+      - name: Build SAM application
+        run: pnpm sam:build
+
+      - name: Deploy SAM application
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          sam deploy \
+            --template-file infra/sam/template.yaml \
+            --config-file samconfig.toml \
+            --config-env "${SAM_CONFIG_ENV}" \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              AppName="${APP_NAME}" \
+              StageName="${STAGE_NAME}" \
+              DbHost="${DB_HOST}" \
+              DbPort="${DB_PORT}" \
+              DbName="${DB_NAME}" \
+              DbUser="${DB_USER}" \
+              DbPassword="${DB_PASSWORD}" \
+              JwtSecret="${JWT_SECRET}" \
+              KakaoClientId="${KAKAO_CLIENT_ID}" \
+              AppleClientId="${APPLE_CLIENT_ID}" \
+              LogLevel="${LOG_LEVEL}"

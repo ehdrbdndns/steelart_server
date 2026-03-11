@@ -1,0 +1,35 @@
+version = 0.1
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.validate.parameters]
+lint = false
+
+[default.deploy.parameters]
+stack_name = "steelart-server-dev"
+resolve_s3 = true
+region = "ap-northeast-2"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+fail_on_empty_changeset = false
+s3_prefix = "steelart-server/dev"
+
+[dev.deploy.parameters]
+stack_name = "steelart-server-dev"
+resolve_s3 = true
+region = "ap-northeast-2"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+fail_on_empty_changeset = false
+s3_prefix = "steelart-server/dev"
+
+[prod.deploy.parameters]
+stack_name = "steelart-server-prod"
+resolve_s3 = true
+region = "ap-northeast-2"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+fail_on_empty_changeset = false
+s3_prefix = "steelart-server/prod"

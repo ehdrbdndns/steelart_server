@@ -1,0 +1,321 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SteelArt server SAM skeleton for HTTP API and CI/CD.
+
+Parameters:
+  AppName:
+    Type: String
+    Default: steelart-server
+    Description: Application name used for tagging and resource naming.
+  StageName:
+    Type: String
+    Default: dev
+    Description: Deployment stage name.
+  DbHost:
+    Type: String
+    Default: localhost
+    Description: MySQL host name.
+  DbPort:
+    Type: Number
+    Default: 3306
+    Description: MySQL port.
+  DbName:
+    Type: String
+    Default: steelart
+    Description: MySQL database name.
+  DbUser:
+    Type: String
+    Default: steelart
+    Description: MySQL user name.
+  DbPassword:
+    Type: String
+    Default: change-me
+    NoEcho: true
+    Description: MySQL password placeholder for the SAM skeleton.
+  JwtSecret:
+    Type: String
+    Default: change-me
+    NoEcho: true
+    Description: JWT signing secret placeholder for the SAM skeleton.
+  KakaoClientId:
+    Type: String
+    Default: ''
+    Description: Kakao client id placeholder.
+  AppleClientId:
+    Type: String
+    Default: ''
+    Description: Apple client id placeholder.
+  LogLevel:
+    Type: String
+    Default: info
+    AllowedValues:
+      - debug
+      - info
+      - warn
+      - error
+    Description: Application log verbosity.
+
+Globals:
+  Function:
+    Runtime: nodejs24.x
+    Architectures:
+      - arm64
+    Timeout: 10
+    MemorySize: 256
+    Environment:
+      Variables:
+        APP_ENV: !Ref StageName
+        APPLE_CLIENT_ID: !Ref AppleClientId
+        AWS_REGION: !Ref AWS::Region
+        DB_HOST: !Ref DbHost
+        DB_NAME: !Ref DbName
+        DB_PASSWORD: !Ref DbPassword
+        DB_PORT: !Ref DbPort
+        DB_USER: !Ref DbUser
+        JWT_SECRET: !Ref JwtSecret
+        KAKAO_CLIENT_ID: !Ref KakaoClientId
+        LOG_LEVEL: !Ref LogLevel
+        NODE_OPTIONS: --enable-source-maps
+    LoggingConfig:
+      LogFormat: JSON
+      ApplicationLogLevel: INFO
+      SystemLogLevel: INFO
+    Tags:
+      Application: !Ref AppName
+      Service: steelart-server
+      Stage: !Ref StageName
+
+Resources:
+  HttpApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/apigateway/${AppName}-${StageName}-http-api
+      RetentionInDays: 14
+      Tags:
+        - Key: Application
+          Value: !Ref AppName
+        - Key: Service
+          Value: steelart-server
+        - Key: Stage
+          Value: !Ref StageName
+
+  SteelArtHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Name: !Sub ${AppName}-${StageName}
+      StageName: !Ref StageName
+      PropagateTags: true
+      DefaultRouteSettings:
+        DetailedMetricsEnabled: false
+      AccessLogSettings:
+        DestinationArn: !GetAtt HttpApiAccessLogGroup.Arn
+        Format: >-
+          {"requestId":"$context.requestId","sourceIp":"$context.identity.sourceIp","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","routeKey":"$context.routeKey","status":"$context.status","responseLength":"$context.responseLength"}
+      Tags:
+        Application: !Ref AppName
+        Service: steelart-server
+        Stage: !Ref StageName
+
+  AuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../../
+      Handler: src/lambdas/auth/handler.handler
+      Events:
+        AuthProxyRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v1/auth/{proxy+}
+            PayloadFormatVersion: '2.0'
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - src/lambdas/auth/handler.ts
+        Format: esm
+        Minify: false
+        OutExtension:
+          - .js=.mjs
+        Sourcemap: true
+        Target: es2022
+
+  UsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../../
+      Handler: src/lambdas/users/handler.handler
+      Events:
+        UsersProxyRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v1/users/{proxy+}
+            PayloadFormatVersion: '2.0'
+        MeProxyRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v1/me/{proxy+}
+            PayloadFormatVersion: '2.0'
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - src/lambdas/users/handler.ts
+        Format: esm
+        Minify: false
+        OutExtension:
+          - .js=.mjs
+        Sourcemap: true
+        Target: es2022
+
+  HomeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../../
+      Handler: src/lambdas/home/handler.handler
+      Events:
+        HomeProxyRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v1/home/{proxy+}
+            PayloadFormatVersion: '2.0'
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - src/lambdas/home/handler.ts
+        Format: esm
+        Minify: false
+        OutExtension:
+          - .js=.mjs
+        Sourcemap: true
+        Target: es2022
+
+  SearchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../../
+      Handler: src/lambdas/search/handler.handler
+      Events:
+        SearchProxyRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v1/search/{proxy+}
+            PayloadFormatVersion: '2.0'
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - src/lambdas/search/handler.ts
+        Format: esm
+        Minify: false
+        OutExtension:
+          - .js=.mjs
+        Sourcemap: true
+        Target: es2022
+
+  ArtworksFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../../
+      Handler: src/lambdas/artworks/handler.handler
+      Events:
+        ArtworksBaseRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v1/artworks
+            PayloadFormatVersion: '2.0'
+        ArtworksProxyRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v1/artworks/{proxy+}
+            PayloadFormatVersion: '2.0'
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - src/lambdas/artworks/handler.ts
+        Format: esm
+        Minify: false
+        OutExtension:
+          - .js=.mjs
+        Sourcemap: true
+        Target: es2022
+
+  MapFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../../
+      Handler: src/lambdas/map/handler.handler
+      Events:
+        MapProxyRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v1/map/{proxy+}
+            PayloadFormatVersion: '2.0'
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - src/lambdas/map/handler.ts
+        Format: esm
+        Minify: false
+        OutExtension:
+          - .js=.mjs
+        Sourcemap: true
+        Target: es2022
+
+  CoursesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../../
+      Handler: src/lambdas/courses/handler.handler
+      Events:
+        CoursesBaseRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v1/courses
+            PayloadFormatVersion: '2.0'
+        CoursesProxyRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v1/courses/{proxy+}
+            PayloadFormatVersion: '2.0'
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - src/lambdas/courses/handler.ts
+        Format: esm
+        Minify: false
+        OutExtension:
+          - .js=.mjs
+        Sourcemap: true
+        Target: es2022
+
+Outputs:
+  HttpApiId:
+    Description: HTTP API identifier.
+    Value: !Ref SteelArtHttpApi
+  HttpApiBaseUrl:
+    Description: HTTP API base URL for the configured stage.
+    Value: !Sub https://${SteelArtHttpApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}
