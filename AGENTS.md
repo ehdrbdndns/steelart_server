@@ -27,8 +27,9 @@
 - Operational workflows and content admin behavior: `steelart_dashboard`
 
 ## Current Status
-- This directory is documentation-first. The server codebase has not been bootstrapped yet.
-- Build the local server structure from the docs in this directory unless the user changes direction.
+- This directory has completed the initial scaffold stage.
+- `infra/sam`, common runtime modules under `src/shared`, and domain/lambda placeholders already exist.
+- Continue implementation from the current codebase and local docs instead of treating this folder as empty.
 - Keep local documentation files under `docs/`. Exceptions: root-level `AGENTS.md` and `README.md`.
 - Manage local documentation in Korean.
 

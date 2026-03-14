@@ -1,249 +1,434 @@
-# 3단계 실행 리서치
+# 4단계 실행 리서치
 
 ## 문서 목적
-- 이 문서는 [IMPLEMENTATION_SEQUENCE.md](./IMPLEMENTATION_SEQUENCE.md)의 `3단계. SAM HTTP API 및 자동 CI/CD`를 실제로 시작하기 전에 필요한 자료를 모아둔 리서치 문서다.
-- 대상 브랜치는 `codex/03-sam-http-api-cicd`다.
-- 기존 `research.md` 내용은 제거하고, 3단계 전용 내용만 남긴다.
+- 이 문서는 [IMPLEMENTATION_SEQUENCE.md](./IMPLEMENTATION_SEQUENCE.md)의 `4단계. 인증 및 사용자 API`를 구현하기 전에 필요한 정보를 모아둔 리서치 문서다.
+- 대상 브랜치는 `codex/04-auth-users`다.
+- 기존 `research.md`에 있던 3단계 CI/CD 조사 내용은 제거하고, 4단계 전용 내용만 남긴다.
 
 ## 대상 단계 요약
-- 목표: `AWS SAM + HTTP API + GitHub Actions` 기준의 배포 골격을 확정한다.
-- 구현 범위:
-  - `infra/sam/template.yaml` 생성
-  - `AWS::Serverless::HttpApi` 리소스 정의
-  - 도메인 Lambda 리소스 골격 정의
-  - 공통 환경 변수 wiring
-  - `infra/sam/samconfig.toml` 생성
-  - `.github/workflows/ci.yml` 생성
-  - `.github/workflows/deploy.yml` 생성
-  - `nodejs24.x`, `arm64`, `esbuild` 기준 설정
-  - 기본 IAM 정책과 로그 설정 정리
-- 산출물:
-  - `sam build` 가능한 SAM 템플릿
-  - CI/CD 워크플로우 초안
+- 목표: 앱이 로그인과 온보딩을 통과할 수 있는 최소 API를 구현한다.
+- 구현 대상 엔드포인트:
+  - `POST /v1/auth/kakao`
+  - `POST /v1/auth/apple`
+  - `POST /v1/auth/refresh`
+  - `GET /v1/auth/me`
+  - `PATCH /v1/users/me/onboarding`
+  - `GET /v1/users/me`
+  - `PATCH /v1/users/me`
+  - `PATCH /v1/me/notifications`
+  - `PATCH /v1/me/language`
+- 이 단계에서 함께 해결해야 할 공통 과제:
+  - access token / refresh token 발급 구조
+  - 보호 라우트와 auth guard 연결
+  - 사용자 DTO, `zod` 스키마, DB row 매퍼
+  - 소셜 provider 사용자와 내부 사용자 매핑
 
 ## 현재 시작점
-- 1단계 부트스트랩은 이미 끝나 있다.
-- 2단계 공통 런타임도 이미 `src/shared/*` 기준으로 들어가 있다.
-- 따라서 3단계는 “서버 코드가 어느 정도 준비된 상태에서 인프라 뼈대와 배포 파이프라인을 연결하는 단계”로 보면 된다.
-- 현재 리포지토리 구조상 3단계의 핵심 신규 파일은 아래다.
-  - `infra/sam/template.yaml`
-  - `infra/sam/samconfig.toml`
-  - `.github/workflows/ci.yml`
-  - `.github/workflows/deploy.yml`
 
-## 3단계에서 바로 결정해도 되는 것
-- API Gateway는 계속 `HTTP API`로 간다.
-- SAM 템플릿은 `Transform: AWS::Serverless-2016-10-31` 기준으로 간다.
-- Lambda runtime은 `nodejs24.x`
-- Lambda architecture는 `arm64`
-- TypeScript 빌드는 `esbuild`
-- SAM 템플릿 공통값은 `Globals`로 최대한 모은다.
-- CI와 deploy workflow는 분리한다.
-- AWS 인증은 장기 액세스 키보다 GitHub OIDC + role assume을 우선한다.
+### 이미 구현된 공통 기반
+- `src/shared/api/*`
+  - 공통 에러, 응답, 라우트 유틸이 있다.
+- `src/shared/auth/guard.ts`
+  - Bearer 토큰 추출과 `requireAuth`만 구현되어 있다.
+  - 아직 토큰 서명/검증은 없다.
+- `src/shared/db/*`
+  - MySQL pool, transaction 유틸이 있다.
+- `src/shared/env/server.ts`
+  - `JWT_SECRET`, `KAKAO_CLIENT_ID`, `APPLE_CLIENT_ID`, DB 환경변수 파서는 이미 있다.
 
-## 3단계에서 아직 미루는 것
-- 실제 도메인 API 라우트 전체 연결
-- JWT authorizer 상세 설계
-- Secrets Manager 런타임 fetch 구현
-- RDS Proxy 실제 연결
-- 스테이징/운영 외의 복잡한 다중 환경 전략
-- canary, alarms, auto rollback 같은 고급 배포 전략
+### 아직 비어 있는 부분
+- `src/lambdas/auth/handler.ts`
+  - shared runtime placeholder만 있는 상태다.
+- `src/lambdas/users/handler.ts`
+  - bootstrap placeholder만 있는 상태다.
+- `src/domains/auth`, `src/domains/users`
+  - 문서상 구조만 있고 실제 구현은 아직 없다.
+- `shared/auth/token.ts`
+  - [FOLDER_STRUCTURE_DRAFT.md](./FOLDER_STRUCTURE_DRAFT.md)에는 계획되어 있지만 아직 파일이 없다.
 
-## 공식 자료 기준 핵심 사실
+### 4단계에서 바로 드러나는 핵심 공백
+- 앱 토큰 서명/검증 모듈이 아직 없다.
+- `user_auth_providers`, `user_refresh_tokens`는 대시보드 raw DDL에는 없지만, 서버 표준 스키마를 먼저 고정해야 한다.
+- Apple 서버 검증에 필요한 추가 자격 증명이 현재 환경변수에 없다.
 
-### 1. Lambda 런타임
-- AWS Lambda는 `Node.js 24`를 `nodejs24.x`로 공식 지원한다.
-- 운영체제는 `Amazon Linux 2023`다.
-- 현재 문서 기준에서 `nodejs24.x` 선택은 맞다.
+## 루트 계약 문서 기준 확정 사항
 
-### 2. SAM 템플릿의 공통 구성
-- AWS SAM 템플릿은 `Globals` 섹션으로 `AWS::Serverless::Function`과 `AWS::Serverless::HttpApi` 같은 리소스의 공통 속성을 상속시킬 수 있다.
-- 3단계에서는 `Runtime`, `Architectures`, `Timeout`, `MemorySize`, `Environment`, `LoggingConfig` 같은 중복 속성을 `Globals.Function`으로 모으는 편이 적절하다.
+### 제품/플로우
+- 익명 탐색은 허용하지 않는다.
+- 로그인 성공 후:
+  - 신규 사용자 또는 온보딩 미완료 사용자 -> 온보딩 진입
+  - 기존 사용자이면서 온보딩 완료 -> 메인 탭 진입
+- 온보딩은 아래 3개를 모두 완료해야 끝난다.
+  - `nickname`
+  - `residency`
+  - `age_group`
+- 닉네임은 중복을 허용한다.
+- 알림 설정과 언어 설정은 분리 API로 수정한다.
+- 로그아웃 API는 없다.
+- 닉네임 중복 확인 전용 API는 없다.
 
-### 3. `AWS::Serverless::HttpApi`
-- `AWS::Serverless::HttpApi`는 `AccessLogSettings`, `Auth`, `DefaultRouteSettings`, `RouteSettings`, `StageName`, `PropagateTags` 등을 가진다.
-- `AccessLogSettings`는 API stage access log 설정이다.
-- `PropagateTags: true`를 주면 태그가 생성 리소스에 전파된다.
+### API 초안 기준 필수 응답 구조
+- `POST /v1/auth/kakao`, `POST /v1/auth/apple`
+  - `token`
+  - `refreshToken`
+  - `user`
+  - `onboardingCompleted`
+- `POST /v1/auth/refresh`
+  - `token`
+- `GET /v1/auth/me`
+  - `authenticated`
+  - `onboardingCompleted`
+  - `user`
+- 모든 응답은 `{ data, meta, error }` 공통 포맷을 유지한다.
 
-### 4. Function의 `HttpApi` 이벤트
-- `AWS::Serverless::Function`의 `Events`에서 `Type: HttpApi`를 선언할 수 있다.
-- `Path`, `Method`, `ApiId`, `PayloadFormatVersion`, `RouteSettings`를 줄 수 있다.
-- `PayloadFormatVersion`의 기본값은 `2.0`이다.
-- `Path`와 `Method`를 생략하면 default route가 생기므로, SteelArt는 도메인별 명시 라우트를 쓰는 편이 안전하다.
+## 엔드포인트별 구현 요구사항
 
-### 5. TypeScript + esbuild
-- AWS SAM은 Node.js Lambda를 `esbuild`로 빌드할 수 있다.
-- `AWS::Serverless::Function` 리소스에 `Metadata`를 두고 `BuildMethod: esbuild`를 지정하면 된다.
-- AWS 공식 예시도 `Environment.Variables.NODE_OPTIONS: --enable-source-maps`를 함께 둔다.
+### 엔드포인트 역할 요약
+- `POST /v1/auth/kakao`
+  - 카카오 로그인 결과를 서버가 받아 내부 사용자와 연결하고 앱 전용 access token과 refresh token을 발급하는 로그인 API다.
+  - 로그인 직후 앱이 다음 화면을 결정할 수 있도록 `user`와 `onboardingCompleted`를 함께 반환해야 한다.
+- `POST /v1/auth/apple`
+  - 애플 로그인 결과를 서버가 검증하고 내부 사용자와 연결한 뒤 앱 전용 access token과 refresh token을 발급하는 로그인 API다.
+  - 역할은 카카오 로그인과 같고 provider만 다르다.
+- `POST /v1/auth/refresh`
+  - 만료된 access token 대신 새 access token을 발급하는 재발급 API다.
+  - 보호 API가 `401 ACCESS_TOKEN_EXPIRED`를 반환했을 때 앱이 바로 호출하는 엔드포인트다.
+- `GET /v1/auth/me`
+  - 현재 Bearer 토큰이 유효한지 확인하고, 지금 로그인된 사용자의 기본 정보와 온보딩 완료 여부를 돌려주는 세션 확인 API다.
+  - 앱 실행 시 `로그인 화면`, `온보딩`, `메인 탭` 중 어디로 보낼지 결정하는 기준이 된다.
+- `PATCH /v1/users/me/onboarding`
+  - 온보딩 3단계에서 받은 `nickname`, `residency`, `age_group`를 저장하는 API다.
+  - 저장 후 사용자가 메인 탭에 진입 가능한 상태인지 판단하는 기준 데이터가 된다.
+- `GET /v1/users/me`
+  - 마이페이지에서 내 프로필을 조회하는 API다.
+  - 로그인 상태 확인보다 프로필 데이터 조회에 초점이 있다.
+- `PATCH /v1/users/me`
+  - 온보딩 완료 이후 사용자가 자신의 기본 프로필을 수정하는 API다.
+  - `nickname`, `residency`, `age_group` 중심의 프로필 수정 역할로 해석하는 것이 자연스럽다.
+- `PATCH /v1/me/notifications`
+  - 알림 수신 여부만 따로 변경하는 설정 API다.
+  - `notifications_enabled` 한 필드만 책임진다.
+- `PATCH /v1/me/language`
+  - 앱 언어 설정만 따로 변경하는 설정 API다.
+  - `language`를 `ko` 또는 `en`으로 변경하는 역할이다.
 
-### 6. `samconfig.toml`
-- `samconfig.toml`은 SAM CLI 설정 파일이다.
-- SAM CLI는 `template.yaml` 위치를 기준으로 `samconfig.toml`을 찾는다.
-- `--config-file` 값도 template 위치를 기준으로 해석된다.
-- 따라서 이 프로젝트에서는 `infra/sam/template.yaml`과 `infra/sam/samconfig.toml`을 같은 디렉터리에 두는 편이 가장 단순하다.
+### 1. `POST /v1/auth/kakao`
+- 요청 계약:
+  - `{ "accessToken": "kakao-access-token" }`
+- 인증 전 라우트다.
+- 서버가 해야 할 일:
+  - 카카오 access token 유효성 확인
+  - 카카오 사용자 고유 식별자 확보
+  - 내부 사용자 조회 또는 생성
+  - access token 발급
+  - refresh token 생성 및 `user_refresh_tokens` 저장
+  - `onboardingCompleted` 계산 후 응답
 
-### 7. `sam validate`
-- `sam validate`는 템플릿이 유효한지 검사한다.
-- `--lint` 옵션으로 `cfn-lint`를 통한 추가 검증을 수행할 수 있다.
-- AWS 공식 문서상 `sam validate`는 AWS credentials configured 상태를 요구한다.
+### 2. `POST /v1/auth/apple`
+- 요청 계약:
+  - `{ "identityToken": "apple-identity-token", "authorizationCode": "apple-auth-code" }`
+- 인증 전 라우트다.
+- 서버가 해야 할 일:
+  - Apple identity token 서명/claim 검증
+  - 필요 시 authorization code 교환 또는 검증
+  - Apple 사용자 고유 식별자 확보
+  - 내부 사용자 조회 또는 생성
+  - access token 발급
+  - refresh token 생성 및 `user_refresh_tokens` 저장
+  - `onboardingCompleted` 계산 후 응답
 
-### 8. `sam build`
-- `sam build`는 이후 `sam deploy`에 사용될 빌드 결과물을 준비한다.
-- `--base-dir`로 code path 해석 기준을 바꿀 수 있지만, 현재 구조에서는 template 기준 상대 경로를 명확히 잡는 쪽이 더 단순하다.
-- 캐시 빌드는 가능하지만 3단계 초안에서는 옵션을 단순하게 유지하는 편이 좋다.
+### 3. `POST /v1/auth/refresh`
+- 요청 계약:
+  - `{ "refreshToken": "app-refresh-token" }`
+- 인증 전 라우트다.
+- 서버가 해야 할 일:
+  - refresh token 조회
+  - `user_refresh_tokens.expires_at` 기준 만료 여부 확인
+  - 유효하면 새 access token 발급
+  - 만료되었으면 `401 REFRESH_TOKEN_EXPIRED` 반환
+- 응답 방향:
+  - 성공 시 새 access token만 반환
+  - 앱은 이 토큰으로 원래 요청을 재시도
 
-### 9. `sam deploy`
-- 첫 배포는 `sam deploy --guided`로 설정값을 만들고, 이후에는 `sam deploy`로 간다.
-- 설정값은 `samconfig.toml`에 저장된다.
-- CI 배포에서는 보통 `--no-confirm-changeset`와 `--no-fail-on-empty-changeset`를 함께 쓴다.
-- IAM 리소스가 포함되면 `CAPABILITY_IAM` 또는 `CAPABILITY_NAMED_IAM`가 필요하다.
+### 4. `GET /v1/auth/me`
+- 보호 라우트다.
+- 해야 할 일:
+  - Bearer 토큰 검증
+  - 사용자 조회
+  - 토큰 유효 여부와 온보딩 완료 여부 반환
+- 계약상 응답은 `authenticated: true`를 포함한다.
+- 구현 기준:
+  - 유효하지 않은 토큰이면 `401`로 실패시킨다.
+  - access token 만료는 `401 ACCESS_TOKEN_EXPIRED`로 명확히 구분한다.
+  - 정상 응답은 유효한 세션에만 사용한다.
 
-### 10. GitHub Actions 기본 문법
-- workflow 파일은 `.github/workflows` 아래에 둬야 한다.
-- `on`으로 `push`, `pull_request`, `workflow_dispatch` 등을 정의한다.
-- branch/path filter를 함께 걸 수 있다.
-- action은 SHA, version tag, branch로 지정할 수 있지만, GitHub는 commit SHA pinning이 가장 안전하다고 권장한다.
+### 5. `PATCH /v1/users/me/onboarding`
+- 보호 라우트다.
+- 요청 바디:
+  - `nickname`
+  - `residency`
+  - `age_group`
+- 해야 할 일:
+  - 세 필드 검증
+  - 사용자 row 업데이트
+  - 응답에서 최신 프로필과 `onboardingCompleted` 반영
 
-### 11. GitHub OIDC + AWS
-- GitHub Docs와 AWS 공식 action README 모두 OIDC를 권장한다.
-- deploy workflow는 `permissions.id-token: write`가 필요하다.
-- `contents: read`는 checkout에 필요하다.
-- GitHub OIDC provider는 `https://token.actions.githubusercontent.com`
-- audience는 공식 action 기준 `sts.amazonaws.com`
-- trust policy에는 `token.actions.githubusercontent.com:sub` 조건을 넣어 어떤 repo/branch/workflow가 role을 assume할 수 있는지 제한하는 게 권장된다.
+### 6. `GET /v1/users/me`
+- 보호 라우트다.
+- 마이페이지용 기본 프로필 조회다.
+- 최소 포함 필드:
+  - `id`
+  - `nickname`
+  - `residency`
+  - `age_group`
+  - `language`
+  - `notifications_enabled`
 
-### 12. GitHub Actions에서 Node / pnpm / SAM
-- `actions/setup-node`는 `node-version: 24`를 명시하는 걸 권장한다.
-- `actions/setup-node`는 `pnpm` cache도 지원한다.
-- `pnpm/action-setup`은 pnpm 설치용이고 Node 설치는 따로 하지 않는다.
-- `aws-actions/setup-sam`은 SAM CLI를 설치하고 PATH에 넣는다.
-- `aws-actions/setup-sam` README 예시도 `setup-sam` 이후 `configure-aws-credentials`와 `sam build`, `sam deploy` 순서를 사용한다.
+### 7. `PATCH /v1/users/me`
+- 보호 라우트다.
+- 온보딩 이후 프로필 수정용이다.
+- 수정 대상은 `nickname`, `residency`, `age_group` 중심으로 보는 것이 자연스럽다.
+- 별도 설정 API와 겹치지 않게 `language`, `notifications_enabled`는 여기서 받지 않는 편이 안전하다.
+- 이 부분은 API 초안의 역할 분리에 따른 구현 권장안이다.
 
-## 이 단계에서 필요한 구체적 산출물
+### 8. `PATCH /v1/me/notifications`
+- 보호 라우트다.
+- 요청 바디:
+  - `{ "notifications_enabled": false }`
+- `users.notifications_enabled`만 갱신한다.
 
-### 1. `infra/sam/template.yaml`
+### 9. `PATCH /v1/me/language`
+- 보호 라우트다.
+- 요청 바디:
+  - `{ "language": "ko" }`
+- 허용 값:
+  - `ko`
+  - `en`
 
-#### 꼭 들어가야 하는 상위 구조
-- `AWSTemplateFormatVersion`
-- `Transform: AWS::Serverless-2016-10-31`
-- `Description`
-- `Parameters`
-- `Globals`
-- `Resources`
-- `Outputs`
+## 사용자 데이터 모델 조사
 
-#### `Parameters` 권장안
-- `StageName`
-- `AppName`
-- `AwsRegion` 또는 region은 런타임에서 환경변수로만 처리
-- `DbHost`
-- `DbPort`
-- `DbName`
-- `DbUser`
-- `DbPasswordSecretArn` 또는 임시 plain env placeholder
-- `JwtSecretArn` 또는 임시 plain env placeholder
+### `users` 테이블에서 현재 확인된 컬럼
+- 루트 [STEELART_DB_TABLES.md](../../STEELART_DB_TABLES.md)와 `steelart_dashboard` 관리자 코드 기준으로 확인된 값:
+  - `id`
+  - `nickname`
+  - `residency`
+  - `age_group`
+  - `language`
+  - `notifications_enabled`
+  - `created_at`
+  - `updated_at`
 
-#### 3단계에서의 현실적인 권장안
-- 3단계는 CI/CD skeleton이 우선이므로, `Secrets Manager` ARN을 parameter로 받는 구조만 먼저 열어두고 실제 secret fetch는 4단계 이후에 미뤄도 된다.
-- 즉, template에는 환경 변수 wiring까지만 넣고, 런타임 secret retrieval은 아직 구현하지 않아도 된다.
+### enum-like 값
+- `residency`
+  - `POHANG`
+  - `NON_POHANG`
+- `age_group`
+  - `TEEN`
+  - `20S`
+  - `30S`
+  - `40S`
+  - `50S`
+  - `60S`
+  - `70_PLUS`
+- `language`
+  - `ko`
+  - `en`
 
-#### `Globals.Function` 권장안
-- `Runtime: nodejs24.x`
-- `Architectures: [arm64]`
-- `Timeout`
-- `MemorySize`
-- `Environment.Variables`
-  - `APP_ENV`
-  - `AWS_REGION`
-  - `NODE_OPTIONS: --enable-source-maps`
-  - DB / auth 관련 키
-- `LoggingConfig`
-- 필요 시 `Tags`
+### 대시보드 코드에서 확인한 사실
+- 관리자 목록 API는 아래 필드만 읽는다.
+  - `nickname`
+  - `residency`
+  - `age_group`
+  - `language`
+  - `notifications_enabled`
+- realistic seed 스크립트도 동일 컬럼만 사용한다.
+- 즉 4단계에서 프로필/온보딩 API를 구현하는 데 필요한 최소 사용자 컬럼은 이미 충분히 확인됐다.
 
-#### `Globals.HttpApi`를 따로 둘지 여부
-- AWS SAM `Globals`는 `AWS::Serverless::HttpApi`도 지원한다.
-- 다만 지금 구조에서는 `HttpApi` 리소스가 하나일 가능성이 높아서, 별도 `Globals.HttpApi`보다 `Resources.HttpApi.Properties`에서 직접 선언해도 충분하다.
+### 아직 확인되지 않은 부분
+- `users`의 raw DDL이 없다.
+- 소셜 로그인 연결용 컬럼은 어디에도 나타나지 않는다.
+  - 예: `provider`, `provider_user_id`, `apple_sub`, `kakao_user_id`
+- 따라서 4단계 인증 구현에는 사용자 식별 매핑 전략이 반드시 필요하다.
 
-### 2. `AWS::Serverless::HttpApi` 리소스
+## 소셜 로그인 매핑 테이블 정리
 
-#### 3단계에서 추천하는 최소 속성
-- `Name`
-- `StageName`
-- `AccessLogSettings`
-- `DefaultRouteSettings`
-- `PropagateTags: true`
-- `Tags`
+### 현재 확인된 사실
+- 소셜 로그인 사용자 매핑은 `users` 테이블이 아니라 `user_auth_providers` 테이블을 기준으로 잡는다.
+- 따라서 4단계 구현에서 신규 매핑 테이블을 따로 설계하는 것이 아니라, 기존 `user_auth_providers`를 사용하는 방향으로 진행한다.
+- 서버 구현 기준 표준 컬럼은 아래처럼 고정한다.
+  - `id`
+  - `user_id`
+  - `provider`
+  - `provider_user_id`
+  - `provider_email`
+  - `created_at`
+  - `updated_at`
+- 제약은 아래처럼 고정한다.
+  - unique `(provider, provider_user_id)`
+  - unique `(user_id, provider)`
+- 현재 provider 값은 `kakao`, `apple`로 둔다.
 
-#### `AccessLogSettings`에 필요한 것
-- 별도 `AWS::Logs::LogGroup`
-- `DestinationArn`
-- `Format`
+### 4단계 구현에 미치는 영향
+- 카카오/애플 로그인 성공 후 내부 사용자 조회는 아래 순서로 설계해야 한다.
+  1. provider 고유 식별자 추출
+  2. `user_auth_providers`에서 내부 사용자 조회
+  3. 없으면 `users` 생성 후 `user_auth_providers` 연결 row 생성
+- 즉 가장 큰 리스크는 "어느 테이블에 저장할지"가 아니라 "이 표준 스키마를 실제 SQL과 대시보드 쪽 문서에도 일관되게 반영하는 것"으로 바뀐다.
 
-#### access log format에 포함하면 좋은 값
-- `$context.requestId`
-- `$context.httpMethod`
-- `$context.routeKey`
-- `$context.status`
-- `$context.responseLength`
-- `$context.identity.sourceIp`
+### 문서 반영 원칙
+- 현재 단계 문서에서는 소셜 로그인 매핑 테이블을 `user_auth_providers`로 고정한다.
+- 대시보드 raw DDL이 나중에 열리더라도 우선은 이 표준 스키마를 기준으로 4단계를 구현한다.
 
-#### `StageName` 선택
-- 3단계 초안에서는 `dev` 또는 parameter 기반이 무난하다.
-- production까지 바로 엮지 않는다면 `StageName`은 parameter화하는 편이 이후 재사용성이 높다.
+## refresh token 저장 테이블 정리
 
-### 3. 도메인 Lambda 리소스 골격
+### 현재 확인된 사실
+- refresh token은 `user_refresh_tokens` 테이블에서 관리한다.
+- 회원가입이 일어나는 최초 로그인 시점에는 refresh token을 반드시 생성해야 한다.
+- 현재 정책상 refresh token 만료 기한은 발급 시점 기준 `30일`이다.
+- 서버 구현 기준 표준 컬럼은 아래처럼 고정한다.
+  - `id`
+  - `user_id`
+  - `refresh_token`
+  - `expires_at`
+  - `revoked_at`
+  - `created_at`
+  - `updated_at`
+- 제약은 아래처럼 고정한다.
+  - unique `refresh_token`
+  - valid token = `revoked_at is null` and `expires_at > now()`
+- 현재는 사용자당 여러 refresh token을 허용한다.
 
-#### 3단계에서 필요한 리소스
-- `AuthFunction`
-- `UsersFunction`
-- `HomeFunction`
-- `SearchFunction`
-- `ArtworksFunction`
-- `MapFunction`
-- `CoursesFunction`
+### 4단계 구현에 미치는 영향
+- 로그인 성공 후 토큰 발급 순서는 아래와 같이 설계해야 한다.
+  1. 내부 사용자 조회 또는 생성
+  2. access JWT 발급
+  3. refresh token 생성
+  4. `expires_at = issued_at + 30일` 계산
+  5. `user_refresh_tokens`에 저장
+  6. 응답에 `token`, `refreshToken`, `user`, `onboardingCompleted` 반환
 
-#### 각 함수에 공통으로 필요한 것
-- `Type: AWS::Serverless::Function`
-- `CodeUri`
-- `Handler`
-- `Events`
-- `Metadata.BuildMethod: esbuild`
+### 구현 메모
+- 4단계 범위에는 refresh token 재발급 API가 포함된다.
+- 보호 API에서 access token이 만료되면 `401 ACCESS_TOKEN_EXPIRED`를 반환한다.
+- 앱은 이 경우 `POST /v1/auth/refresh`를 호출해 새 access token을 받고 원래 요청을 재시도한다.
+- refresh token도 만료되었으면 `401 REFRESH_TOKEN_EXPIRED`를 반환하고 앱은 재로그인으로 보낸다.
+- refresh token rotation / revoke 전략은 후속 단계에서 더 강화하되, 현재 스키마는 `revoked_at`으로 그 확장 여지를 남긴다.
 
-#### `CodeUri` 전략
-- 현재 코드베이스는 루트 `src/` 아래에 모든 코드가 있다.
-- SAM은 template 기준 상대 경로를 쓰므로 `../../src` 같은 형태가 될 수 있다.
-- 이 경로는 장기적으로 읽기 불편하므로, 3단계에서는 다음 둘 중 하나를 선택해야 한다.
-  1. template 기준 상대 경로를 그대로 사용
-  2. root script에서 `--base-dir`를 사용
-- 현재 구조와 단순성을 기준으로 보면 `template.yaml`에서 명시 경로를 쓰는 쪽이 먼저 낫다.
+## `onboardingCompleted` 판단 규칙
 
-#### `Handler` 전략
-- 현재 핸들러 위치:
-  - `src/lambdas/auth/handler.ts`
-  - `src/lambdas/users/handler.ts`
-  - 나머지는 아직 `.gitkeep`만 있음
-- 3단계에서는 나머지 도메인 핸들러 파일도 placeholder라도 실제 `handler.ts`를 만들어야 `sam build`가 깨지지 않는다.
-- 이건 로컬 문서와 현재 코드 상태를 바탕으로 한 구현 추론이다.
+### 문서에서 직접 보이는 사실
+- 온보딩은 `nickname`, `residency`, `age_group` 3단계를 모두 완료해야 끝난다.
+- 별도 `onboarding_completed` 컬럼은 현재 확인되지 않았다.
 
-#### `Metadata` 권장안
-- `BuildMethod: esbuild`
-- `BuildProperties`
-  - `EntryPoints`
-  - `Minify: false`
-  - `Target: es2022`
-  - `Sourcemap: true`
-  - `Format: esm`
-  - `OutExtension`
-  - `External`
+### 구현 방향
+- 아래 세 값이 모두 비어 있지 않으면 `onboardingCompleted = true`
+  - `nickname`
+  - `residency`
+  - `age_group`
+- 별도 컬럼이 없는 현재 문서 상태에서는 이 파생 계산 방식이 가장 자연스럽다.
+- 4단계는 이 방식으로 구현한다.
 
-#### `Format: esm` 선택 이유
-- 현재 `package.json`이 `"type": "module"`이다.
-- 따라서 Lambda 핸들러 번들도 ESM 전제를 유지하는 쪽이 충돌이 적다.
-- 이 부분은 현재 저장소 설정을 바탕으로 한 구현 판단이다.
+## 소셜 provider 조사
 
-### 4. 환경 변수 wiring
+### Kakao 로그인
 
-#### 3단계에서 wiring 해야 하는 값
+#### 현재 앱 계약과 맞는 서버 플로우
+- 앱이 이미 카카오 로그인 access token을 받아서 서버에 전달한다.
+- 따라서 서버는 OAuth authorization code 교환보다 아래 순서가 맞다.
+  1. 요청 body에서 `accessToken` 검증
+  2. Kakao API로 token 유효성 확인
+  3. Kakao API로 사용자 정보 조회
+  4. Kakao 사용자 ID를 내부 사용자에 매핑
+  5. 앱 전용 토큰 발급
+
+#### 공식 문서에서 확인할 포인트
+- `Kakao Login - REST API`
+  - 카카오 로그인 REST 흐름의 기준 문서다.
+- `Retrieve token information`
+  - access token 유효성, 사용자 ID, `app_id`, 만료 시간 확인용이다.
+- `Retrieve user information`
+  - `v2/user/me`로 사용자 기본 정보를 읽는 기준 문서다.
+
+#### 구현 시 주의점
+- 앱이 access token을 주므로 서버가 카카오 비밀키로 별도 교환할 필요는 없다.
+- 다만 토큰 정보 응답의 `app_id`를 기준으로 "정말 우리 Kakao 앱에서 발급된 토큰인지" 확인할지 결정해야 한다.
+- 현재 서버 env의 `KAKAO_CLIENT_ID` 이름 자체는 구현 의도와 충돌하지 않는 것으로 본다.
+- 다만 실제 Kakao 키는 아직 발급 전이므로, 4단계 구현에서는 env 이름을 유지하되 실제 운영값 주입은 후속 설정이 필요하다.
+
+### Apple 로그인
+
+#### 현재 앱 계약과 맞는 서버 플로우
+- 앱이 `identityToken`과 `authorizationCode`를 함께 보낸다.
+- 서버는 최소한 아래 둘 중 하나를 수행해야 한다.
+  - `identityToken` 서명과 claim 검증
+  - `authorizationCode`를 Apple token endpoint로 교환
+- 보안적으로는 둘 다 확인하는 편이 더 안전하다.
+
+#### 공식 문서에서 확인할 포인트
+- `Request an authorization to the Sign in with Apple server`
+  - authorization code를 token endpoint로 교환하는 기준 문서다.
+- `Generate and validate tokens`
+  - client secret JWT 생성과 검증 흐름 문서다.
+- `Fetch Apple's public key for verifying token signature`
+  - `identityToken` 서명 검증용 JWK 조회 문서다.
+
+#### 현재 환경변수와의 차이
+- 지금 서버 env에는 `APPLE_CLIENT_ID`만 있다.
+- 하지만 authorization code 교환까지 하려면 일반적으로 아래가 더 필요하다.
+  - `APPLE_TEAM_ID`
+  - `APPLE_KEY_ID`
+  - `APPLE_PRIVATE_KEY`
+- 4단계는 `identityToken` 검증만 먼저 구현하는 방향으로 진행한다.
+- 따라서 Apple authorization code 교환과 추가 env 확장은 후속 단계로 미룬다.
+
+#### `APPLE_CLIENT_ID` 값
+- 현재 사용자 식별자는 `com.steelart.app`으로 확인됐다.
+- 앱 네이티브 Sign in with Apple 흐름이라면 이 값을 `APPLE_CLIENT_ID`로 두는 방향이 자연스럽다.
+
+## 앱 토큰 구조 조사
+
+### 현재 코드 상태
+- [src/shared/auth/guard.ts](../src/shared/auth/guard.ts)는 Bearer 토큰 문자열만 꺼낸다.
+- 토큰 발급, 서명, 만료 검증, 사용자 ID 추출 로직은 없다.
+- env에는 `JWT_SECRET`이 이미 존재한다.
+
+### 4단계 토큰 방향
+- access token 포맷
+  - JWT 기반으로 진행한다.
+- access token claim
+  - 최소 `sub`(내부 user id)
+  - `iat`
+  - `exp`
+  - 필요 시 `ver` 또는 `type`
+- access token TTL
+  - 발급 시점 기준 `1시간`
+- refresh token 포맷
+  - 서버가 생성해 `user_refresh_tokens`에서 관리하는 값으로 둔다.
+- refresh token TTL
+  - 발급 시점 기준 `30일`
+
+### 현재 문서 기준 구현안
+- 4단계는 `JWT_SECRET`을 사용하는 access JWT + DB 관리 refresh token 조합으로 구현한다.
+- 최소 claim은 아래 정도면 충분하다.
+  - `sub`: 내부 사용자 ID
+  - `iat`
+  - `exp`
+- `onboardingCompleted`, `nickname`, `language` 같은 프로필 값은 토큰에 넣지 않고 DB에서 읽는 편이 안전하다.
+- 보호 API는 access token 만료 시 `401 ACCESS_TOKEN_EXPIRED`를 반환한다.
+- refresh API는 refresh token이 유효하면 새 access token을 반환하고, refresh token이 만료되었으면 `401 REFRESH_TOKEN_EXPIRED`를 반환한다.
+
+### 현재 코드베이스에 추가로 필요한 것
+- `shared/auth/token.ts`
+  - access JWT sign
+  - access JWT verify
+  - access JWT decode claims
+  - refresh token 생성
+- 토큰 검증 실패 -> `UNAUTHORIZED`
+- 보호 라우트에서 `requireAuth`가 단순 token string 반환이 아니라 내부 user id까지 포함하도록 확장 필요
+
+## 4단계 구현을 위해 필요한 환경변수 검토
+
+### 현재 이미 있는 값
 - `APP_ENV`
 - `AWS_REGION`
 - `DB_HOST`
@@ -252,229 +437,134 @@
 - `DB_USER`
 - `DB_PASSWORD`
 - `JWT_SECRET`
+- `KAKAO_CLIENT_ID`
+- `APPLE_CLIENT_ID`
 - `LOG_LEVEL`
 
-#### Secrets handling 방향
-- 문서 기준 목표는 `Secrets Manager`지만, 3단계는 skeleton이다.
-- 따라서 3단계 구현 방식은 둘 중 하나다.
-  1. deploy parameter로 바로 environment variables 주입
-  2. secret ARN만 주입하고 런타임 구현은 나중 단계
-- 3단계 목표가 `sam validate/build/deploy skeleton`인 점을 감안하면, 먼저 1번으로 움직이고 4단계 이후 2번으로 전환하는 게 가장 빠르다.
-- 이건 source를 바탕으로 한 구현 전략 추론이다.
+### 4단계에서 추가 가능성이 높은 값
+- Apple authorization code 교환까지 구현한다면:
+  - `APPLE_TEAM_ID`
+  - `APPLE_KEY_ID`
+  - `APPLE_PRIVATE_KEY`
+- Kakao access token introspection만 한다면 `KAKAO_CLIENT_ID` 외 추가 env 없이도 시작 가능할 가능성이 높다.
+- 다만 Kakao app 검증을 더 엄격히 하려면 비교 대상 값 명칭을 다시 정리해야 한다.
 
-### 5. IAM / Logs
+## 코드 구조 측면에서 필요한 파일
 
-#### 3단계에서 필요한 최소 IAM
-- Lambda execution role
-- CloudWatch Logs 쓰기
-- 이후 비밀값, DB, X-Ray 접근은 별도 확장
+### `auth` 도메인
+- `src/domains/auth/service.ts`
+- `src/domains/auth/repository.ts`
+- `src/domains/auth/schemas.ts`
+- `src/domains/auth/mapper.ts`
+- `src/domains/auth/types.ts`
 
-#### 실전 주의
-- template에 IAM 리소스가 포함되면 deploy command에 capability 설정이 필요하다.
-- custom role names를 넣으면 `CAPABILITY_NAMED_IAM`가 필요할 수 있다.
-- 처음에는 SAM이 생성하는 role에 최소 정책만 붙이는 편이 단순하다.
+### `users` 도메인
+- `src/domains/users/service.ts`
+- `src/domains/users/repository.ts`
+- `src/domains/users/schemas.ts`
+- `src/domains/users/mapper.ts`
+- `src/domains/users/types.ts`
 
-#### 로그 설정
-- Function level: `LoggingConfig`
-- API level: `HttpApi.AccessLogSettings`
-- 둘은 역할이 다르므로 둘 다 두는 편이 좋다.
+### 공통 인증 모듈
+- `src/shared/auth/token.ts`
+- `src/shared/auth/providers/kakao.ts`
+- `src/shared/auth/providers/apple.ts`
 
-## `samconfig.toml` 설계 포인트
+### 현재 라우트 연결 대상
+- `src/lambdas/auth/handler.ts`
+- `src/lambdas/users/handler.ts`
 
-### 파일 위치
-- `infra/sam/samconfig.toml`
-- `template.yaml`과 같은 디렉터리에 둔다.
+## SQL 관점에서 필요한 읽기/쓰기
 
-### 이유
-- AWS 공식 문서상 config file은 template 위치 기준으로 해석된다.
-- 같은 디렉터리에 두면 root script와 CI에서 path 혼동이 가장 적다.
+### 사용자 조회
+- 내부 user id로 조회
+- 닉네임/거주지/연령대/언어/알림 상태 조회
 
-### environment 이름 권장안
-- `default`
-- `dev`
-- `prod`
+### 인증 매핑 조회
+- provider + provider user id로 내부 사용자 조회
+- 없으면 신규 user 생성 후 identity 연결
 
-### 3단계에서 넣어둘 만한 값
-- `stack_name`
-- `s3_bucket`
-- `s3_prefix`
-- `region`
-- `capabilities`
-- `confirm_changeset = false`
-- `fail_on_empty_changeset = false`
-- `resolve_s3 = true` 여부
+### refresh token 저장
+- 로그인 또는 회원가입 시 refresh token row 생성
+- 저장 대상은 `user_refresh_tokens`
+- `expires_at` 기준 만료일은 발급 시점 기준 `30일`
 
-### 주의
-- 계정/버킷 이름처럼 환경별 민감한 운영값을 저장할지 여부는 팀 정책 문제다.
-- 이 저장소는 공개 GitHub 저장소이므로, secret은 넣지 않되 non-secret deploy config만 넣는 편이 안전하다.
+### 사용자 생성
+- 기본값 권장:
+  - `nickname = null`
+  - `residency = null`
+  - `age_group = null`
+  - `language = 'ko'`
+  - `notifications_enabled = true`
+- 이 기본값은 API 초안 로그인 응답 예시와 일치한다.
 
-## GitHub Actions 설계 포인트
+### 프로필/온보딩 수정
+- `PATCH /v1/users/me/onboarding`
+- `PATCH /v1/users/me`
+- `PATCH /v1/me/notifications`
+- `PATCH /v1/me/language`
 
-### `ci.yml`
+## 검증 포인트
 
-#### 목적
-- PR과 branch push에서 quality gate 수행
+### 단위 테스트 우선 대상
+- 카카오 로그인 request schema
+- 애플 로그인 request schema
+- onboarding request schema
+- access token sign/verify
+- refresh token 생성
+- `onboardingCompleted` 계산 함수
+- auth guard가 잘못된/누락된 토큰에서 실패하는지
 
-#### 추천 trigger
-- `pull_request`:
-  - `main`
-- `push`:
-  - `main`
-  - 필요 시 `codex/**`
+### 저장소/서비스 테스트 우선 대상
+- 신규 social identity -> user 생성
+- 기존 social identity -> 기존 user 반환
+- 신규 user 생성 시 refresh token 저장
+- onboarding 저장 후 `GET /v1/users/me` 반영
+- notification/language patch 반영
 
-#### path filter 후보
-- `src/**`
-- `infra/sam/**`
-- `.github/workflows/**`
-- `package.json`
-- `pnpm-lock.yaml`
-- `tsconfig.json`
+### HTTP 수준 검증 포인트
+- 보호 라우트는 인증 없이 `401`
+- 로그인 성공 시 `token`, `refreshToken`, `user`, `onboardingCompleted` 반환
+- access token 만료 시 `401 ACCESS_TOKEN_EXPIRED`
+- refresh API 성공 시 새 access token 반환
+- refresh token 만료 시 `401 REFRESH_TOKEN_EXPIRED`와 재로그인 유도
+- `/v1/auth/me`가 토큰 기반으로 사용자 프로필 반환
+- `PATCH /v1/users/me/onboarding` 후 `onboardingCompleted = true`
+- 공통 응답 포맷 유지
 
-#### 추천 단계
-1. checkout
-2. setup node 24
-3. setup pnpm
-4. install
-5. typecheck
-6. test
-7. setup sam
-8. sam build
-9. 필요 시 sam validate
+## 단계 착수 전에 확정해야 할 질문
 
-#### 중요한 주의
-- AWS 공식 문서상 `sam validate`는 AWS credentials configured를 요구한다.
-- 따라서 PR CI에서 OIDC를 쓰지 않을 계획이면 `ci.yml`은 `sam build`까지만 하고, `sam validate`는 deploy workflow로 보내는 구성이 현실적이다.
-- 반대로 PR CI에도 OIDC를 줄 수 있다면 `sam validate --lint`까지 포함 가능하다.
-- 이건 공식 문서의 credential requirement를 바탕으로 한 운영 추론이다.
+### 반드시 확정해야 하는 것
+- 없음
 
-### `deploy.yml`
+### 있으면 좋지만 구현을 막지는 않는 것
+- 추후 refresh token rotation / revoke 전략
 
-#### 목적
-- trusted branch 기준 AWS 배포
+## 4단계 구현 권장 결론
+- `auth`와 `users` 도메인을 동시에 여는 브랜치다.
+- 기술적으로 가장 큰 이슈는 표준 스키마에 맞는 repository SQL을 안정적으로 구현하고, 이후 대시보드 문서와 동기화하는 것이다.
+- 현재 문서 상태만 보면 아래 순서가 가장 안전하다.
+  1. 표준 스키마 기준 repository SQL 고정
+  2. access JWT / refresh token 발급 유틸 추가
+  3. refresh API 구현
+  4. Kakao 로그인부터 구현
+  5. Apple `identityToken` 검증 연결
+  6. onboarding/profile/settings API 연결
+- Apple authorization code 교환은 후속 단계로 미룬다.
 
-#### 추천 trigger
-- `push` on `main`
-- `workflow_dispatch`
+## 공식 참고 링크
+- Kakao Developers: [Kakao Login - REST API](https://developers.kakao.com/docs/latest/en/kakaologin/rest-api)
+  - 이 문서 안에 `Retrieve token information`과 `Retrieve user information` 섹션이 함께 있다.
+- Kakao Developers: [Concepts](https://developers.kakao.com/docs/latest/en/kakaologin/common)
+- Apple Developer: [Request an authorization to the Sign in with Apple server](https://developer.apple.com/documentation/signinwithapplerestapi/request_an_authorization_to_the_sign_in_with_apple_server)
+- Apple Developer: [Generate and validate tokens](https://developer.apple.com/documentation/signinwithapplerestapi/generate_and_validate_tokens)
+- Apple Developer: [Fetch Apple's public key for verifying token signature](https://developer.apple.com/documentation/signinwithapplerestapi/fetch_apple_s_public_key_for_verifying_token_signature)
 
-#### 권한
-- `permissions`
-  - `contents: read`
-  - `id-token: write`
-
-#### 추천 단계
-1. checkout
-2. setup node 24
-3. setup pnpm
-4. install
-5. setup sam
-6. configure aws credentials by OIDC
-7. sam validate
-8. sam build
-9. sam deploy
-
-#### deploy command 권장 옵션
-- `--config-env <env>`
-- `--no-confirm-changeset`
-- `--no-fail-on-empty-changeset`
-- 필요 시 `--capabilities CAPABILITY_IAM`
-
-### Action 선택 기준
-- `actions/checkout`
-- `actions/setup-node`
-- `pnpm/action-setup`
-- `aws-actions/setup-sam`
-- `aws-actions/configure-aws-credentials`
-
-### 보안 기준
-- GitHub Docs는 action을 SHA로 pin하는 것이 가장 안전하다고 권장한다.
-- 3단계 구현에서는 적어도 major version 또는 SHA pinning 전략을 명시해야 한다.
-
-## 이 저장소에 맞는 권장 명령 형태
-
-### 로컬
-- `pnpm install`
-- `pnpm typecheck`
-- `pnpm test`
-- `sam validate --template-file infra/sam/template.yaml --config-file samconfig.toml`
-- `sam build --template-file infra/sam/template.yaml --config-file samconfig.toml`
-
-### 최초 수동 배포
-- `sam deploy --guided --template-file infra/sam/template.yaml --config-file samconfig.toml`
-
-### CI/CD 배포
-- `sam deploy --template-file infra/sam/template.yaml --config-file samconfig.toml --config-env <env> --no-confirm-changeset --no-fail-on-empty-changeset`
-
-## 3단계 구현 시 예상되는 결정 포인트
-
-### 1. `sam validate`를 CI에 넣을지
-- 넣는다:
-  - OIDC 또는 AWS credentials가 CI에도 필요
-- 안 넣는다:
-  - PR CI는 `typecheck/test/sam build`
-  - deploy workflow에서 `sam validate`
-
-### 2. deploy workflow의 환경 수
-- 최소:
-  - `dev`
-  - `prod`
-- skeleton 단계에서는 `dev` 한 개만 먼저 열어도 된다.
-
-### 3. placeholder handler 추가 여부
-- `sam build`를 확실히 통과시키려면 모든 함수 logical resource가 참조하는 실제 `handler.ts` 파일이 존재해야 한다.
-- 따라서 3단계에서 미구현 도메인에도 최소 placeholder handler 파일을 추가할 가능성이 높다.
-
-### 4. IAM role naming
-- custom named role을 만들면 capability와 운영 복잡도가 올라간다.
-- 3단계 skeleton은 자동 생성 role이 더 단순하다.
-
-## 3단계에서 피해야 할 실수
-- `AWS::Serverless::Api`로 다시 돌아가는 것
-- `HttpApi` default route를 실수로 여러 함수에 두는 것
-- template와 samconfig를 다른 디렉터리에 두고 path 해석을 혼동하는 것
-- CI workflow에 `id-token: write`를 전역으로 남발하는 것
-- 배포 workflow에 long-lived AWS key를 secret으로 넣는 것
-- `sam validate` credential requirement를 무시하고 PR CI를 불안정하게 만드는 것
-- `main` push와 PR workflow의 역할을 섞어버리는 것
-
-## 3단계에서 권장하는 구현 순서
-1. `infra/sam/template.yaml`
-2. placeholder handler가 없는 도메인 Lambda 파일 추가
-3. `infra/sam/samconfig.toml`
-4. 루트 `package.json`의 `sam:*` 스크립트를 실제 명령으로 교체
-5. `.github/workflows/ci.yml`
-6. `.github/workflows/deploy.yml`
-7. `sam validate`
-8. `sam build`
-
-## 3단계 완료 조건을 코드/운영 기준으로 풀어쓰면
-- `infra/sam/template.yaml`이 존재한다.
-- `AWS::Serverless::HttpApi`가 명시적으로 선언되어 있다.
-- 도메인 Lambda 리소스가 template에 골격으로 선언되어 있다.
-- `nodejs24.x`, `arm64`, `esbuild`가 template 기준으로 반영되어 있다.
-- `infra/sam/samconfig.toml`이 template 기준 경로와 맞게 배치되어 있다.
-- `ci.yml`, `deploy.yml`이 문법상 유효하다.
-- `sam validate`가 통과한다.
-- `sam build`가 통과한다.
-
-## 공식 참고 자료
-- AWS Lambda Node.js runtime: [Building Lambda functions with Node.js](https://docs.aws.amazon.com/lambda/latest/dg/lambda-nodejs.html)
-- AWS SAM HttpApi resource: [AWS::Serverless::HttpApi](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-httpapi.html)
-- AWS SAM Function HttpApi event: [HttpApi property for Function](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-property-function-httpapi.html)
-- AWS SAM Function resource: [AWS::Serverless::Function](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html)
-- AWS SAM Globals: [Globals section of the AWS SAM template](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-specification-template-anatomy-globals.html)
-- AWS SAM TypeScript + esbuild: [Building Node.js Lambda functions with esbuild in AWS SAM](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-using-build-typescript.html)
-- AWS SAM config file: [AWS SAM CLI configuration file](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-config.html)
-- AWS SAM validate: [sam validate](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-validate.html)
-- AWS SAM validate overview: [Validate AWS SAM template files](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-using-validate.html)
-- AWS SAM build: [sam build](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-build.html)
-- AWS SAM deploy overview: [Introduction to deploying with AWS SAM](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/using-sam-cli-deploy.html)
-- AWS SAM deploy reference: [sam deploy](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-cli-command-reference-sam-deploy.html)
-- GitHub Actions workflow syntax: [Workflow syntax for GitHub Actions](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax)
-- GitHub OIDC with AWS: [Configuring OpenID Connect in Amazon Web Services](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws)
-- `aws-actions/setup-sam`: [setup-sam README](https://github.com/aws-actions/setup-sam)
-- `aws-actions/configure-aws-credentials`: [configure-aws-credentials README](https://github.com/aws-actions/configure-aws-credentials)
-- `actions/setup-node`: [setup-node README](https://github.com/actions/setup-node)
-- `pnpm/action-setup`: [pnpm action setup README](https://github.com/pnpm/action-setup)
-
-## 한 줄 결론
-- 3단계의 핵심은 “`shared` 기반 위에 `SAM template + samconfig + CI workflow + OIDC deploy workflow`를 최소하지만 실제 배포 가능한 형태로 연결하는 것”이며, 특히 `HttpApi 명시 라우트`, `template와 samconfig의 같은 디렉터리 배치`, `deploy job만 OIDC 권한 부여`, `sam validate credential requirement`를 먼저 정확히 잡는 것이 중요하다.
+## 함께 본 내부 참고 문서
+- [IMPLEMENTATION_SEQUENCE.md](./IMPLEMENTATION_SEQUENCE.md)
+- [STEELART_SERVER_API_DRAFT.md](../../STEELART_SERVER_API_DRAFT.md)
+- [STEELART_DB_TABLES.md](../../STEELART_DB_TABLES.md)
+- [STEELART_APP_MVP_BRIEF.md](../../STEELART_APP_MVP_BRIEF.md)
+- [STEELART_APP_SCREEN_SPECS.md](../../STEELART_APP_SCREEN_SPECS.md)
+- [FOLDER_STRUCTURE_DRAFT.md](./FOLDER_STRUCTURE_DRAFT.md)
+- [SERVER_ARCHITECTURE_DRAFT.md](./SERVER_ARCHITECTURE_DRAFT.md)

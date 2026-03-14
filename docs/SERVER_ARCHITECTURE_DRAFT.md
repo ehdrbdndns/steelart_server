@@ -116,8 +116,10 @@
 ### `auth`
 - 카카오 로그인 교환
 - 애플 로그인 교환
+- `POST /v1/auth/refresh` 기반 access token 재발급
 - `/v1/auth/me` 기반 토큰/세션 검증
-- 소셜 provider 식별자와 내부 사용자 매핑
+- `user_auth_providers` 기반의 소셜 provider 식별자와 내부 사용자 매핑
+- `user_refresh_tokens` 기반 refresh token 저장
 
 ### `users`
 - 온보딩 저장
@@ -157,9 +159,15 @@
 
 ## 인증 방향
 - 현재 API 초안은 카카오/애플 로그인 후 서버가 앱 토큰을 발급하는 구조를 전제로 한다.
-- 첫 구현은 이 초안에 맞춰 단순하게 시작한다.
+- 4단계 첫 구현은 `JWT_SECRET` 기반 access JWT를 사용하는 구조로 시작한다.
+- access token 만료 기한은 발급 시점 기준 `1시간`으로 둔다.
+- 소셜 로그인 매핑은 `users`에 직접 넣지 않고 `user_auth_providers`를 기준으로 연결한다.
+- refresh token은 `user_refresh_tokens`에 저장하고, 만료 기한은 발급 시점 기준 `30일`로 둔다.
+- 보호 API 호출 시 access token이 만료되면 `401 ACCESS_TOKEN_EXPIRED`를 반환하고, 앱은 `POST /v1/auth/refresh`로 새 access token을 요청한다.
+- refresh token도 만료되었으면 `401 REFRESH_TOKEN_EXPIRED`를 반환하고 앱은 재로그인을 유도한다.
+- Apple 로그인은 초기 단계에서 `identityToken` 검증만 먼저 구현하고, authorization code 교환은 후속 단계로 미룬다.
 - 제품 요구가 바뀌지 않는 한 로그아웃 API는 추가하지 않는다.
-- 토큰 만료 시간과 갱신 전략은 운영 안정화 전에 확정하되, 초기 골격 작업을 막는 이슈로 두지는 않는다.
+- access token 만료 시 보호 API는 `401 ACCESS_TOKEN_EXPIRED`를 반환하고, 앱이 `POST /v1/auth/refresh`로 재발급한 뒤 원래 요청을 재시도한다.
 
 ## 이미 확정된 데이터 규칙
 - 홈 지역 모델은 `zones`를 사용한다.
