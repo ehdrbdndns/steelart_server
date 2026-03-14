@@ -11,6 +11,7 @@ import {
   parseJsonBody,
 } from '../../src/shared/api/route.js';
 import { getBearerToken, requireAuth } from '../../src/shared/auth/guard.js';
+import type { AccessTokenClaims } from '../../src/shared/auth/token.js';
 
 function createEvent(overrides: Partial<APIGatewayProxyEventV2> = {}): APIGatewayProxyEventV2 {
   return {
@@ -94,4 +95,30 @@ test('auth guard extracts bearer tokens and rejects missing auth', () => {
     () => requireAuth(createEvent()),
     (error: unknown) => error instanceof AppError && error.code === 'UNAUTHORIZED',
   );
+});
+
+test('auth guard can resolve authenticated user via injected verifier', () => {
+  const auth = requireAuth(
+    createEvent({
+      headers: {
+        authorization: 'Bearer token-value',
+      },
+    }),
+    undefined,
+    {
+      verifyToken(token): AccessTokenClaims {
+        assert.equal(token, 'token-value');
+
+        return {
+          exp: 200,
+          iat: 100,
+          sub: 9,
+          type: 'access',
+        };
+      },
+    },
+  );
+
+  assert.equal(auth.userId, 9);
+  assert.equal(auth.tokenClaims.type, 'access');
 });

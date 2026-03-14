@@ -79,12 +79,20 @@
 ### 4. 인증/사용자 API
 - `POST /v1/auth/kakao`
 - `POST /v1/auth/apple`
+- `POST /v1/auth/refresh`
 - `GET /v1/auth/me`
 - `PATCH /v1/users/me/onboarding`
 - `GET /v1/users/me`
 - `PATCH /v1/users/me`
 - `PATCH /v1/me/notifications`
 - `PATCH /v1/me/language`
+- `JWT_SECRET` 기반 access JWT 발급/검증
+- access token 만료 `1시간` 정책
+- `user_refresh_tokens` 기반 refresh token 발급/저장
+- access token 만료 시 `401 ACCESS_TOKEN_EXPIRED -> refresh -> 재요청` 흐름
+- refresh token 만료 `30일` 정책
+- `user_auth_providers` 기준 소셜 로그인 매핑
+- Apple `identityToken` 우선 검증
 
 ### 5. 읽기 중심 콘텐츠 API
 - `GET /v1/home/banners`
@@ -187,8 +195,8 @@
 
 ## 같이 확인해야 할 항목
 - 카카오/애플 인증 상세 방식
-- 앱 토큰 만료/재발급 정책
 - `users`, `artwork_likes`, `course_likes` 실제 DDL
+- `user_auth_providers`, `user_refresh_tokens`의 dashboard raw DDL 반영 여부
 - GPS 허용 오차 수치
 - 홈 `zones` 정렬 기준
 - GitHub Actions의 브랜치별 배포 규칙

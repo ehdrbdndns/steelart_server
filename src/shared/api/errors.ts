@@ -1,6 +1,8 @@
 export const APP_ERROR_CODES = [
   'BAD_REQUEST',
   'UNAUTHORIZED',
+  'ACCESS_TOKEN_EXPIRED',
+  'REFRESH_TOKEN_EXPIRED',
   'FORBIDDEN',
   'NOT_FOUND',
   'METHOD_NOT_ALLOWED',
@@ -15,6 +17,8 @@ export type AppErrorCode = (typeof APP_ERROR_CODES)[number];
 const APP_ERROR_STATUS_CODES: Record<AppErrorCode, number> = {
   BAD_REQUEST: 400,
   UNAUTHORIZED: 401,
+  ACCESS_TOKEN_EXPIRED: 401,
+  REFRESH_TOKEN_EXPIRED: 401,
   FORBIDDEN: 403,
   NOT_FOUND: 404,
   METHOD_NOT_ALLOWED: 405,
@@ -27,6 +31,8 @@ const APP_ERROR_STATUS_CODES: Record<AppErrorCode, number> = {
 const APP_ERROR_MESSAGES: Record<AppErrorCode, string> = {
   BAD_REQUEST: 'Bad request',
   UNAUTHORIZED: 'Unauthorized',
+  ACCESS_TOKEN_EXPIRED: 'Access token expired',
+  REFRESH_TOKEN_EXPIRED: 'Refresh token expired',
   FORBIDDEN: 'Forbidden',
   NOT_FOUND: 'Not found',
   METHOD_NOT_ALLOWED: 'Method not allowed',

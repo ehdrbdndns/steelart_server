@@ -130,13 +130,21 @@
 ### 수행 작업
 - `POST /v1/auth/kakao`
 - `POST /v1/auth/apple`
+- `POST /v1/auth/refresh`
 - `GET /v1/auth/me`
 - `PATCH /v1/users/me/onboarding`
 - `GET /v1/users/me`
 - `PATCH /v1/users/me`
 - `PATCH /v1/me/notifications`
 - `PATCH /v1/me/language`
-- 토큰 구조와 auth guard 연결
+- `JWT_SECRET` 기반 access JWT 발급/검증과 auth guard 연결
+- access token 만료 `1시간` 정책 반영
+- `STEELART_DB_TABLES.md`에 고정한 server-standard auth/session schema 기준 repository 구현
+- `user_refresh_tokens` 기반 refresh token 발급/저장
+- access token 만료 시 `401 ACCESS_TOKEN_EXPIRED`와 refresh 재발급 흐름 연결
+- refresh token 만료일 `30일` 정책 반영
+- `user_auth_providers` 기반 소셜 로그인 매핑 연결
+- Apple은 `identityToken` 검증만 먼저 구현
 - 사용자 DTO/스키마/매퍼 구현
 
 ### 산출물
@@ -145,7 +153,11 @@
 
 ### 검증 기준
 - 보호 API가 인증 없이 호출되면 적절히 실패한다.
-- 인증 성공 시 사용자 정보와 온보딩 상태가 반환된다.
+- 인증 성공 시 access token, refresh token, 사용자 정보와 온보딩 상태가 반환된다.
+- access token 만료 시 `401`과 만료 에러 코드가 반환되고, refresh API로 새 access token을 받을 수 있다.
+- refresh token 만료 시 `401`과 함께 재로그인이 필요한 상태가 명확히 반환된다.
+- refresh token 만료일은 발급 시점 기준 `30일`로 일관되게 계산된다.
+- `onboardingCompleted`는 `nickname`, `residency`, `age_group` 3개 값 기준으로 일관되게 계산된다.
 - 온보딩 저장 후 프로필 조회 결과에 반영된다.
 - 타입 검사와 최소 단위 테스트 통과
 - API 응답이 문서 초안과 충돌하지 않는다.
