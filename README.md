@@ -1,8 +1,9 @@
 # steelart_server
 
 ## Status
-- This directory is a documentation-first bootstrap for the SteelArt backend.
-- The goal is to let a new thread start from agreed context instead of rebuilding product and API decisions from scratch.
+- This directory is the active SteelArt backend workspace.
+- Initial scaffold is already in place, including `infra/sam`, `src/shared`, Lambda handlers, and docs under `docs/`.
+- The goal is to let a new thread continue from the current backend baseline without rebuilding context from scratch.
 
 ## Read First
 1. `AGENTS.md`
@@ -29,7 +30,6 @@
 - Lambda grouping: domain-based, not one Lambda per endpoint
 
 ## What Should Happen In The Next Server Thread
-- Confirm the initial architecture choices in `docs/SERVER_ARCHITECTURE_DRAFT.md`.
-- Confirm the code layout in `docs/FOLDER_STRUCTURE_DRAFT.md`.
-- Bootstrap the actual server project skeleton.
-- Start implementation in the order defined by `docs/MASTER_PLAN.md` and `docs/IMPLEMENTATION_SEQUENCE.md`.
+- Confirm the current implementation baseline against `docs/SERVER_ARCHITECTURE_DRAFT.md`.
+- Continue implementation from `docs/MASTER_PLAN.md` and `docs/IMPLEMENTATION_SEQUENCE.md`.
+- Use `docs/plan.md` and `docs/research.md` for the current working step when they exist.
