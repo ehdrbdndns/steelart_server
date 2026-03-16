@@ -44,7 +44,8 @@ const USER_SELECT_COLUMNS = [
 ].join(', ');
 
 function mapUserRow(row: UserRow): UserRecord {
-  const normalizedNickname = row.nickname?.trim() ? row.nickname : null;
+  const trimmedNickname = row.nickname?.trim();
+  const normalizedNickname = trimmedNickname ? trimmedNickname : null;
 
   return {
     age_group: normalizedNickname ? row.age_group : null,

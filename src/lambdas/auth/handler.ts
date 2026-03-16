@@ -6,7 +6,6 @@ import type {
 } from 'aws-lambda';
 
 import { AppError, toAppError } from '../../shared/api/errors.js';
-import { mapRefreshResponse } from '../../domains/auth/mapper.js';
 import {
   appleLoginSchema,
   kakaoLoginSchema,
@@ -93,7 +92,7 @@ export async function handleAuthRequest(
       });
       const result = await service.refreshAccessToken(input.refreshToken);
 
-      return ok(mapRefreshResponse(result.token), {
+      return ok(result, {
         requestId: request.requestId ?? null,
       });
     }
