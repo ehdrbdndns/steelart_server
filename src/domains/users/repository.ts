@@ -44,14 +44,16 @@ const USER_SELECT_COLUMNS = [
 ].join(', ');
 
 function mapUserRow(row: UserRow): UserRecord {
+  const normalizedNickname = row.nickname?.trim() ? row.nickname : null;
+
   return {
-    age_group: row.age_group,
+    age_group: normalizedNickname ? row.age_group : null,
     created_at: row.created_at,
     id: row.id,
     language: row.language,
-    nickname: row.nickname,
+    nickname: normalizedNickname,
     notifications_enabled: row.notifications_enabled === true || row.notifications_enabled === 1,
-    residency: row.residency,
+    residency: normalizedNickname ? row.residency : null,
     updated_at: row.updated_at,
   };
 }

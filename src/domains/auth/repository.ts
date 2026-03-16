@@ -59,14 +59,16 @@ const USER_SELECT_COLUMNS = [
 ].join(', ');
 
 function mapUserRow(row: UserRow): UserRecord {
+  const normalizedNickname = row.nickname?.trim() ? row.nickname : null;
+
   return {
-    age_group: row.age_group,
+    age_group: normalizedNickname ? row.age_group : null,
     created_at: row.created_at,
     id: row.id,
     language: row.language,
-    nickname: row.nickname,
+    nickname: normalizedNickname,
     notifications_enabled: row.notifications_enabled === true || row.notifications_enabled === 1,
-    residency: row.residency,
+    residency: normalizedNickname ? row.residency : null,
     updated_at: row.updated_at,
   };
 }
@@ -87,6 +89,9 @@ export const authRepository: AuthRepository = {
   async createUserWithIdentityAndRefreshToken(input) {
     return withTransaction(async (connection) => {
       const now = new Date();
+
+      // 현재 DB 스키마는 프로필 필드를 NOT NULL로 강제하므로,
+      // 온보딩 전 사용자는 빈 닉네임과 placeholder enum 값으로 저장한 뒤 조회 시 null 의미로 정규화한다.
       const [userInsertResult] = await connection.execute<ResultSetHeader>(
         `INSERT INTO users (
             nickname,
@@ -96,7 +101,7 @@ export const authRepository: AuthRepository = {
             notifications_enabled,
             created_at,
             updated_at
-          ) VALUES (NULL, NULL, NULL, 'ko', 1, ?, ?)`,
+          ) VALUES ('', 'NON_POHANG', '20S', 'ko', 1, ?, ?)`,
         [now, now],
       );
 
@@ -111,7 +116,7 @@ export const authRepository: AuthRepository = {
           ) VALUES (?, ?, ?, ?)`,
         [
           userId,
-          input.identity.provider,
+          input.identity.provider.toUpperCase(),
           input.identity.providerUserId,
           now,
         ],
@@ -179,7 +184,7 @@ export const authRepository: AuthRepository = {
           WHERE p.provider = ?
             AND p.provider_user_id = ?
           LIMIT 1`,
-        [provider, providerUserId],
+        [provider.toUpperCase(), providerUserId],
       );
 
       return rows[0] ? mapUserRow(rows[0]) : null;
