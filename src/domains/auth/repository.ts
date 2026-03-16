@@ -107,16 +107,12 @@ export const authRepository: AuthRepository = {
             user_id,
             provider,
             provider_user_id,
-            provider_email,
-            created_at,
-            updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?)`,
+            created_at
+          ) VALUES (?, ?, ?, ?)`,
         [
           userId,
           input.identity.provider,
           input.identity.providerUserId,
-          input.identity.providerEmail,
-          now,
           now,
         ],
       );

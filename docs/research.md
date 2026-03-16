@@ -260,7 +260,6 @@
   - `user_id`
   - `provider`
   - `provider_user_id`
-  - `provider_email`
   - `created_at`
   - `updated_at`
 - 제약은 아래처럼 고정한다.

@@ -21,7 +21,6 @@ export interface RefreshTokenInput {
 
 export interface SocialIdentity {
   provider: AuthProvider;
-  providerEmail: string | null;
   providerUserId: string;
 }
 

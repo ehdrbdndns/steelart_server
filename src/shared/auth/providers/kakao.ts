@@ -7,9 +7,6 @@ const KAKAO_USER_INFO_URL = 'https://kapi.kakao.com/v2/user/me';
 
 const kakaoUserInfoSchema = z.object({
   id: z.union([z.number().int().positive(), z.string().min(1)]).transform(String),
-  kakao_account: z.object({
-    email: z.string().email().nullable().optional(),
-  }).partial().optional(),
 });
 
 export function createKakaoAuthProvider(): KakaoAuthProviderClient {
@@ -58,7 +55,6 @@ export function createKakaoAuthProvider(): KakaoAuthProviderClient {
 
       return {
         provider: 'kakao',
-        providerEmail: userInfo.kakao_account?.email ?? null,
         providerUserId: userInfo.id,
       };
     },

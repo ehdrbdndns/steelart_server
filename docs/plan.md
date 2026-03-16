@@ -70,7 +70,7 @@
 - `user_auth_providers`, `user_refresh_tokens`는 [STEELART_DB_TABLES.md](../../STEELART_DB_TABLES.md)에 server-standard schema로 고정했다.
 - 따라서 4단계 SQL은 아래 표준 컬럼명을 기준으로 바로 작성한다.
   - `user_auth_providers`
-    - `id`, `user_id`, `provider`, `provider_user_id`, `provider_email`, `created_at`, `updated_at`
+    - `id`, `user_id`, `provider`, `provider_user_id`, `created_at`, `updated_at`
   - `user_refresh_tokens`
     - `id`, `user_id`, `refresh_token`, `expires_at`, `revoked_at`, `created_at`, `updated_at`
 

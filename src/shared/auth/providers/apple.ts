@@ -24,7 +24,6 @@ const appleJwtHeaderSchema = z.object({
 
 const appleJwtPayloadSchema = z.object({
   aud: z.string().min(1),
-  email: z.string().email().nullable().optional(),
   exp: z.number().int(),
   iat: z.number().int(),
   iss: z.string().min(1),
@@ -187,7 +186,6 @@ export function createAppleAuthProvider(): AppleAuthProviderClient {
 
       return {
         provider: 'apple',
-        providerEmail: payload.email ?? null,
         providerUserId: payload.sub,
       };
     },
