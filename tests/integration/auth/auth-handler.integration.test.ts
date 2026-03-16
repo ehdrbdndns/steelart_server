@@ -151,7 +151,7 @@ test('auth handler creates user and auth records for POST /v1/auth/kakao', { ski
 
   assert.equal(body.data.onboardingCompleted, false);
   assert.equal(body.data.user.language, 'ko');
-  assert.equal(body.data.user.nickname, null);
+  assert.equal(body.data.user.nickname, '');
 
   const claims = verifyAccessToken(body.data.token);
   assert.equal(claims.sub, body.data.user.id);

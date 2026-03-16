@@ -60,16 +60,16 @@ const USER_SELECT_COLUMNS = [
 
 function mapUserRow(row: UserRow): UserRecord {
   const trimmedNickname = row.nickname?.trim();
-  const normalizedNickname = trimmedNickname ? trimmedNickname : null;
+  const normalizedNickname = trimmedNickname ? trimmedNickname : '';
 
   return {
-    age_group: normalizedNickname ? row.age_group : null,
+    age_group: row.age_group,
     created_at: row.created_at,
     id: row.id,
     language: row.language,
     nickname: normalizedNickname,
     notifications_enabled: row.notifications_enabled === true || row.notifications_enabled === 1,
-    residency: normalizedNickname ? row.residency : null,
+    residency: row.residency,
     updated_at: row.updated_at,
   };
 }
@@ -91,8 +91,6 @@ export const authRepository: AuthRepository = {
     return withTransaction(async (connection) => {
       const now = new Date();
 
-      // 현재 DB 스키마는 프로필 필드를 NOT NULL로 강제하므로,
-      // 온보딩 전 사용자는 빈 닉네임과 placeholder enum 값으로 저장한 뒤 조회 시 null 의미로 정규화한다.
       const [userInsertResult] = await connection.execute<ResultSetHeader>(
         `INSERT INTO users (
             nickname,
@@ -102,7 +100,7 @@ export const authRepository: AuthRepository = {
             notifications_enabled,
             created_at,
             updated_at
-          ) VALUES ('', 'NON_POHANG', '20S', 'ko', 1, ?, ?)`,
+          ) VALUES ('', NULL, NULL, 'ko', 1, ?, ?)`,
         [now, now],
       );
 

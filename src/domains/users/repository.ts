@@ -45,16 +45,16 @@ const USER_SELECT_COLUMNS = [
 
 function mapUserRow(row: UserRow): UserRecord {
   const trimmedNickname = row.nickname?.trim();
-  const normalizedNickname = trimmedNickname ? trimmedNickname : null;
+  const normalizedNickname = trimmedNickname ? trimmedNickname : '';
 
   return {
-    age_group: normalizedNickname ? row.age_group : null,
+    age_group: row.age_group,
     created_at: row.created_at,
     id: row.id,
     language: row.language,
     nickname: normalizedNickname,
     notifications_enabled: row.notifications_enabled === true || row.notifications_enabled === 1,
-    residency: normalizedNickname ? row.residency : null,
+    residency: row.residency,
     updated_at: row.updated_at,
   };
 }

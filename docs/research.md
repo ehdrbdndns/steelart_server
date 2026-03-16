@@ -490,7 +490,7 @@
 
 ### 사용자 생성
 - 기본값 권장:
-  - `nickname = null`
+  - `nickname = ''`
   - `residency = null`
   - `age_group = null`
   - `language = 'ko'`

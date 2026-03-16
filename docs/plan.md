@@ -195,7 +195,7 @@
   - `src/domains/users/repository.ts`
 - SQL 기준
   - `users` 기본값:
-    - `nickname = null`
+    - `nickname = ''`
     - `residency = null`
     - `age_group = null`
     - `language = 'ko'`
