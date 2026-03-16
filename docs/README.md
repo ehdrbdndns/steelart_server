@@ -7,7 +7,6 @@
 - 로컬 문서는 한국어로 작성하고 관리한다.
 
 ## 현재 문서
-- `API_SPEC.md`
 - `SERVER_ARCHITECTURE_DRAFT.md`
 - `FOLDER_STRUCTURE_DRAFT.md`
 - `MASTER_PLAN.md`
