@@ -4,6 +4,7 @@ import test from 'node:test';
 import { loadEnv } from '../../src/shared/env/server.js';
 import { AppError } from '../../src/shared/api/errors.js';
 
+// 환경 변수는 필요한 타입으로 파싱되고 강제 변환되어야 한다.
 test('loadEnv parses and coerces environment variables', () => {
   const env = loadEnv({
     APP_ENV: 'local',
@@ -23,6 +24,7 @@ test('loadEnv parses and coerces environment variables', () => {
   assert.equal(env.LOG_LEVEL, 'debug');
 });
 
+// 필수 환경 변수가 없으면 AppError를 던져야 한다.
 test('loadEnv throws AppError on missing required variables', () => {
   assert.throws(
     () =>

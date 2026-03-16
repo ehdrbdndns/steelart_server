@@ -4,6 +4,7 @@ import test from 'node:test';
 import { AppError } from '../../src/shared/api/errors.js';
 import { fail, ok } from '../../src/shared/api/response.js';
 
+// 성공 응답은 공통 envelope 형식으로 감싸져야 한다.
 test('ok returns the shared success envelope', () => {
   const response = ok(
     {
@@ -26,6 +27,7 @@ test('ok returns the shared success envelope', () => {
   });
 });
 
+// 실패 응답은 공통 error envelope 형식과 상태 코드를 유지해야 한다.
 test('fail returns the shared error envelope', () => {
   const response = fail(
     new AppError('NOT_FOUND', {
