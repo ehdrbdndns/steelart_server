@@ -14,7 +14,9 @@ export interface ValidationDetails {
   issues: ValidationIssue[];
 }
 
-export interface ParseOptions {
+export interface ParseInputArgs<TSchema extends ZodType> {
+  schema: TSchema;
+  input: unknown;
   code?: AppErrorCode;
   message?: string;
 }
@@ -46,17 +48,18 @@ export function formatZodError(error: z.ZodError): ValidationDetails {
   };
 }
 
-export function parseOrThrow<TSchema extends ZodType>(
-  schema: TSchema,
-  input: unknown,
-  options: ParseOptions = {},
-): z.output<TSchema> {
+export function parseInput<TSchema extends ZodType>({
+  schema,
+  input,
+  code,
+  message,
+}: ParseInputArgs<TSchema>): z.output<TSchema> {
   const result = schema.safeParse(input);
 
   if (!result.success) {
-    throw new AppError(options.code ?? 'VALIDATION_ERROR', {
+    throw new AppError(code ?? 'VALIDATION_ERROR', {
       details: formatZodError(result.error),
-      message: options.message ?? 'Validation failed',
+      message: message ?? 'Validation failed',
     });
   }
 
