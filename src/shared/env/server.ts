@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { parseOrThrow } from '../validation/parse.js';
+import { parseInput } from '../validation/parse.js';
 
 const serverEnvSchema = z.object({
   APP_ENV: z.string().min(1, 'APP_ENV is required'),
@@ -22,7 +22,9 @@ export type ServerEnv = z.output<typeof serverEnvSchema>;
 let cachedEnv: ServerEnv | null = null;
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv {
-  return parseOrThrow(serverEnvSchema, source, {
+  return parseInput({
+    schema: serverEnvSchema,
+    input: source,
     message: 'Server environment variables are invalid',
   });
 }
