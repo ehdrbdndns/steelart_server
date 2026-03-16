@@ -184,7 +184,6 @@ test('loginWithKakao stores refresh token for an existing user', async () => {
       async getIdentity() {
         return {
           provider: 'kakao',
-          providerEmail: 'steel@example.com',
           providerUserId: 'kakao-user-1',
         };
       },
