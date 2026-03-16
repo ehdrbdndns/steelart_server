@@ -21,10 +21,10 @@ import {
   createUsersService,
   type UsersService,
 } from '../../domains/users/service.js';
-import { mysqlUsersRepository } from '../../domains/users/repository.js';
+import { usersRepository } from '../../domains/users/repository.js';
 
 const usersService = createUsersService({
-  usersRepository: mysqlUsersRepository,
+  usersRepository,
 });
 
 function assertMethod(actualMethod: string, allowedMethods: string[]): void {
@@ -55,9 +55,9 @@ export async function handleUsersRequest(
     if (request.path === '/v1/users/me/onboarding') {
       assertMethod(request.method, ['PATCH']);
       const input = parseInput({
+        schema: onboardingUpdateSchema,
         input: request.parseJsonBody(),
         message: 'Onboarding payload is invalid',
-        schema: onboardingUpdateSchema,
       });
       const result = await service.updateOnboarding(auth.userId, input);
 
@@ -70,16 +70,18 @@ export async function handleUsersRequest(
       assertMethod(request.method, ['GET', 'PATCH']);
 
       if (request.method === 'GET') {
-        return ok(await service.getProfile(auth.userId), {
+        const result = await service.getProfile(auth.userId);
+
+        return ok(result, {
           requestId: request.requestId ?? null,
         });
       }
 
       if (request.method === 'PATCH') {
         const input = parseInput({
+          schema: profileUpdateSchema,
           input: request.parseJsonBody(),
           message: 'Profile payload is invalid',
-          schema: profileUpdateSchema,
         });
         const result = await service.updateProfile(auth.userId, input);
 
@@ -92,9 +94,9 @@ export async function handleUsersRequest(
     if (request.path === '/v1/me/notifications') {
       assertMethod(request.method, ['PATCH']);
       const input = parseInput({
+        schema: notificationsUpdateSchema,
         input: request.parseJsonBody(),
         message: 'Notifications payload is invalid',
-        schema: notificationsUpdateSchema,
       });
       const result = await service.updateNotifications(auth.userId, input);
 
@@ -106,9 +108,9 @@ export async function handleUsersRequest(
     if (request.path === '/v1/me/language') {
       assertMethod(request.method, ['PATCH']);
       const input = parseInput({
+        schema: languageUpdateSchema,
         input: request.parseJsonBody(),
         message: 'Language payload is invalid',
-        schema: languageUpdateSchema,
       });
       const result = await service.updateLanguage(auth.userId, input);
 
