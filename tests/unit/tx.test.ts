@@ -25,6 +25,7 @@ function createFakeConnection(overrides: Partial<TransactionConnection> = {}) {
   return { calls, connection };
 }
 
+// 트랜잭션이 성공하면 commit 후 connection을 release해야 한다.
 test('runTransaction commits and releases on success', async () => {
   const { calls, connection } = createFakeConnection();
 
@@ -37,6 +38,7 @@ test('runTransaction commits and releases on success', async () => {
   assert.deepEqual(calls, ['beginTransaction', 'run', 'commit', 'release']);
 });
 
+// 롤백이 성공해도 원래 발생한 에러를 그대로 유지해야 한다.
 test('runTransaction preserves the original error when rollback succeeds', async () => {
   const { calls, connection } = createFakeConnection();
   const originalError = new Error('original failure');
@@ -53,6 +55,7 @@ test('runTransaction preserves the original error when rollback succeeds', async
   assert.deepEqual(calls, ['beginTransaction', 'run', 'rollback', 'release']);
 });
 
+// 롤백 실패는 기록하되 원래 에러를 덮어쓰면 안 된다.
 test('runTransaction reports rollback failure without masking the original error', async () => {
   const rollbackError = new Error('rollback failure');
   const originalError = new Error('original failure');
