@@ -16,8 +16,8 @@ import {
   createAuthService,
   type AuthService,
 } from '../../domains/auth/service.js';
-import { mysqlAuthRepository } from '../../domains/auth/repository.js';
-import { mysqlUsersRepository } from '../../domains/users/repository.js';
+import { authRepository } from '../../domains/auth/repository.js';
+import { usersRepository } from '../../domains/users/repository.js';
 import { createHttpRequest } from '../../shared/api/route.js';
 import { fail, ok } from '../../shared/api/response.js';
 import { requireAuth } from '../../shared/auth/guard.js';
@@ -28,9 +28,9 @@ import { parseInput } from '../../shared/validation/parse.js';
 
 const authService = createAuthService({
   appleProvider: createAppleAuthProvider(),
-  authRepository: mysqlAuthRepository,
+  authRepository,
   kakaoProvider: createKakaoAuthProvider(),
-  usersRepository: mysqlUsersRepository,
+  usersRepository,
 });
 
 function assertMethod(actualMethod: string, allowedMethods: string[]): void {
@@ -59,9 +59,9 @@ export async function handleAuthRequest(
     if (request.path === '/v1/auth/kakao') {
       assertMethod(request.method, ['POST']);
       const input = parseInput({
+        schema: kakaoLoginSchema,
         input: request.parseJsonBody(),
         message: 'Kakao login payload is invalid',
-        schema: kakaoLoginSchema,
       });
       const result = await service.loginWithKakao(input);
 
@@ -73,9 +73,9 @@ export async function handleAuthRequest(
     if (request.path === '/v1/auth/apple') {
       assertMethod(request.method, ['POST']);
       const input = parseInput({
+        schema: appleLoginSchema,
         input: request.parseJsonBody(),
         message: 'Apple login payload is invalid',
-        schema: appleLoginSchema,
       });
       const result = await service.loginWithApple(input);
 
@@ -87,9 +87,9 @@ export async function handleAuthRequest(
     if (request.path === '/v1/auth/refresh') {
       assertMethod(request.method, ['POST']);
       const input = parseInput({
+        schema: refreshTokenSchema,
         input: request.parseJsonBody(),
         message: 'Refresh payload is invalid',
-        schema: refreshTokenSchema,
       });
       const result = await service.refreshAccessToken(input.refreshToken);
 
