@@ -10,7 +10,7 @@
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "build": "pnpm typecheck",
     "lint": "node --eval \"console.log('lint step will be added in a later stage')\"",
-    "test": "tsx --test tests/unit/**/*.test.ts",
+    "test": "tsx --test tests/unit/*.test.ts tests/unit/**/*.test.ts",
     "sam:validate": "sam validate --template-file infra/sam/template.yaml --config-file samconfig.toml --config-env default",
     "sam:build": "sam build --template-file infra/sam/template.yaml --config-file samconfig.toml --config-env default",
     "sam:deploy:guided": "sam deploy --guided --template-file infra/sam/template.yaml --config-file samconfig.toml --config-env dev"
