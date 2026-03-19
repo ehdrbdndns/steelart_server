@@ -81,7 +81,7 @@ jobs:
         run: |
           sam deploy \
             --template-file .aws-sam/build/template.yaml \
-            --config-file samconfig.toml \
+            --config-file ../../samconfig.toml \
             --config-env "${SAM_CONFIG_ENV}" \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
