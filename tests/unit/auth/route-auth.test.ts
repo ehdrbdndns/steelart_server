@@ -87,6 +87,26 @@ test('route helper reads path segments and repeated query values', () => {
   assert.deepEqual(request.getQueryList('artistType'), ['COMPANY', 'INDIVIDUAL']);
 });
 
+// stage가 붙은 invoke URL로 들어와도 요청 path는 stage prefix 없이 정규화되어야 한다.
+test('route helper strips stage prefix from raw path', () => {
+  const event = createEvent({
+    rawPath: '/dev/v1/auth/me',
+    requestContext: {
+      ...createEvent().requestContext,
+      http: {
+        ...createEvent().requestContext.http,
+        path: '/dev/v1/auth/me',
+      },
+      stage: 'dev',
+    },
+  });
+
+  const request = createHttpRequest(event);
+
+  assert.equal(request.path, '/v1/auth/me');
+  assert.deepEqual(getPathSegments(request.path), ['v1', 'auth', 'me']);
+});
+
 // JSON body가 잘못되면 AppError로 변환되어야 한다.
 test('parseJsonBody throws AppError when body is not valid JSON', () => {
   const event = createEvent({

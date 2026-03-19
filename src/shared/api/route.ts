@@ -49,7 +49,24 @@ export function getMethod(event: APIGatewayProxyEventV2): string {
 }
 
 export function getPath(event: APIGatewayProxyEventV2): string {
-  return event.rawPath;
+  const rawPath = event.rawPath;
+  const stage = event.requestContext.stage;
+
+  if (!stage || stage === '$default') {
+    return rawPath;
+  }
+
+  const stagePrefix = `/${stage}`;
+
+  if (rawPath === stagePrefix) {
+    return '/';
+  }
+
+  if (rawPath.startsWith(`${stagePrefix}/`)) {
+    return rawPath.slice(stagePrefix.length);
+  }
+
+  return rawPath;
 }
 
 export function getPathSegments(path: string): string[] {
