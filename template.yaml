@@ -32,6 +32,10 @@ Parameters:
     Default: change-me
     NoEcho: true
     Description: MySQL password placeholder for the SAM skeleton.
+  DbSslCaPath:
+    Type: String
+    Default: /var/runtime/ca-cert.pem
+    Description: CA certificate bundle path used for TLS connections to RDS.
   JwtSecret:
     Type: String
     Default: change-me
@@ -70,6 +74,7 @@ Globals:
         DB_NAME: !Ref DbName
         DB_PASSWORD: !Ref DbPassword
         DB_PORT: !Ref DbPort
+        DB_SSL_CA_PATH: !Ref DbSslCaPath
         DB_USER: !Ref DbUser
         JWT_SECRET: !Ref JwtSecret
         KAKAO_CLIENT_ID: !Ref KakaoClientId

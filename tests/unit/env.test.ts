@@ -14,6 +14,7 @@ test('loadEnv parses and coerces environment variables', () => {
     DB_NAME: 'steelart',
     DB_PASSWORD: 'password',
     DB_PORT: '3306',
+    DB_SSL_CA_PATH: '/var/runtime/ca-cert.pem',
     DB_USER: 'steelart',
     JWT_SECRET: 'secret',
     KAKAO_CLIENT_ID: 'kakao-client',
@@ -21,6 +22,7 @@ test('loadEnv parses and coerces environment variables', () => {
   });
 
   assert.equal(env.DB_PORT, 3306);
+  assert.equal(env.DB_SSL_CA_PATH, '/var/runtime/ca-cert.pem');
   assert.equal(env.LOG_LEVEL, 'debug');
 });
 
