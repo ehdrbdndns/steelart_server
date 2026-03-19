@@ -14,7 +14,7 @@
     "test:integration": "tsx --test --test-concurrency=1 tests/integration/**/*.test.ts",
     "sam:validate": "sam validate --template-file template.yaml --config-file samconfig.toml --config-env default",
     "sam:build": "sam build --template-file template.yaml --config-file samconfig.toml --config-env default",
-    "sam:deploy:guided": "pnpm sam:build && sam deploy --guided --template-file .aws-sam/build/template.yaml --config-file samconfig.toml --config-env dev"
+    "sam:deploy:guided": "pnpm sam:build && sam deploy --guided --template-file .aws-sam/build/template.yaml --config-file ../../samconfig.toml --config-env dev"
   },
   "dependencies": {
     "mysql2": "^3.15.1",
