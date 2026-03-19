@@ -132,10 +132,8 @@ Resources:
       BuildProperties:
         EntryPoints:
           - src/lambdas/auth/handler.ts
-        Format: esm
+        Format: cjs
         Minify: false
-        OutExtension:
-          - .js=.mjs
         Sourcemap: true
         Target: es2022
 
@@ -164,10 +162,8 @@ Resources:
       BuildProperties:
         EntryPoints:
           - src/lambdas/users/handler.ts
-        Format: esm
+        Format: cjs
         Minify: false
-        OutExtension:
-          - .js=.mjs
         Sourcemap: true
         Target: es2022
 
@@ -189,10 +185,8 @@ Resources:
       BuildProperties:
         EntryPoints:
           - src/lambdas/home/handler.ts
-        Format: esm
+        Format: cjs
         Minify: false
-        OutExtension:
-          - .js=.mjs
         Sourcemap: true
         Target: es2022
 
@@ -214,10 +208,8 @@ Resources:
       BuildProperties:
         EntryPoints:
           - src/lambdas/search/handler.ts
-        Format: esm
+        Format: cjs
         Minify: false
-        OutExtension:
-          - .js=.mjs
         Sourcemap: true
         Target: es2022
 
@@ -246,10 +238,8 @@ Resources:
       BuildProperties:
         EntryPoints:
           - src/lambdas/artworks/handler.ts
-        Format: esm
+        Format: cjs
         Minify: false
-        OutExtension:
-          - .js=.mjs
         Sourcemap: true
         Target: es2022
 
@@ -271,10 +261,8 @@ Resources:
       BuildProperties:
         EntryPoints:
           - src/lambdas/map/handler.ts
-        Format: esm
+        Format: cjs
         Minify: false
-        OutExtension:
-          - .js=.mjs
         Sourcemap: true
         Target: es2022
 
@@ -303,10 +291,8 @@ Resources:
       BuildProperties:
         EntryPoints:
           - src/lambdas/courses/handler.ts
-        Format: esm
+        Format: cjs
         Minify: false
-        OutExtension:
-          - .js=.mjs
         Sourcemap: true
         Target: es2022
 

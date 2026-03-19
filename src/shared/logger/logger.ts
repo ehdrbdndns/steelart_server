@@ -1,6 +1,6 @@
 import type { APIGatewayProxyEventV2, Context } from 'aws-lambda';
 
-import { getRequestId } from '../api/route.js';
+import { getPath, getRequestId } from '../api/route.js';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -42,25 +42,26 @@ function shouldLog(level: LogLevel, currentLevel: LogLevel): boolean {
 function log(level: LogLevel, context: LoggerContext, message: string, extra?: Record<string, unknown>): void {
   const payload = {
     ...context,
-    extra: extra ?? null,
-    level,
     message,
-    timestamp: new Date().toISOString(),
+    ...(extra === undefined ? {} : { extra }),
   };
 
-  const line = JSON.stringify(payload);
-
   if (level === 'error') {
-    console.error(line);
+    console.error(payload);
     return;
   }
 
   if (level === 'warn') {
-    console.warn(line);
+    console.warn(payload);
     return;
   }
 
-  console.log(line);
+  if (level === 'info') {
+    console.info(payload);
+    return;
+  }
+
+  console.debug(payload);
 }
 
 export function createLogger(context: LoggerContext): Logger {
@@ -98,7 +99,7 @@ export function createLoggerFromRequest(
   return createLogger({
     ...extraContext,
     method: event.requestContext.http.method,
-    path: event.rawPath,
+    path: getPath(event),
     requestId: getRequestId(event, context),
   });
 }

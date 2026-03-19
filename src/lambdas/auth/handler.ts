@@ -5,7 +5,7 @@ import type {
   Context,
 } from 'aws-lambda';
 
-import { AppError, toAppError } from '../../shared/api/errors.js';
+import { AppError, serializeErrorForLog, toAppError } from '../../shared/api/errors.js';
 import {
   appleLoginSchema,
   kakaoLoginSchema,
@@ -114,7 +114,10 @@ export async function handleAuthRequest(
     const appError = toAppError(error);
 
     logger.error('Auth handler failed', {
+      appMessage: appError.message,
       code: appError.code,
+      details: appError.details ?? null,
+      error: serializeErrorForLog(error),
       statusCode: appError.statusCode,
     });
 
