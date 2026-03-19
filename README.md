@@ -29,6 +29,11 @@
 - API base path: `/v1`
 - Lambda grouping: domain-based, not one Lambda per endpoint
 
+## Environment Notes
+- 운영 RDS가 `require_secure_transport=ON`이면 Lambda에 `DB_SSL_CA_PATH`를 주입해야 한다.
+- 현재 권장 운영값은 `/var/runtime/ca-cert.pem`이다.
+- 로컬 DB가 TLS를 강제하지 않으면 `DB_SSL_CA_PATH`를 비워도 된다.
+
 ## What Should Happen In The Next Server Thread
 - Confirm the current implementation baseline against `docs/SERVER_ARCHITECTURE_DRAFT.md`.
 - Continue implementation from `docs/MASTER_PLAN.md` and `docs/IMPLEMENTATION_SEQUENCE.md`.

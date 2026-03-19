@@ -33,6 +33,7 @@ env:
   DB_HOST: ${{ vars.DB_HOST || 'localhost' }}
   DB_NAME: ${{ vars.DB_NAME || 'steelart' }}
   DB_PORT: ${{ vars.DB_PORT || '3306' }}
+  DB_SSL_CA_PATH: ${{ vars.DB_SSL_CA_PATH || '/var/runtime/ca-cert.pem' }}
   DB_USER: ${{ vars.DB_USER || 'steelart' }}
   KAKAO_CLIENT_ID: ${{ vars.KAKAO_CLIENT_ID || '' }}
   LOG_LEVEL: ${{ vars.LOG_LEVEL || 'info' }}
@@ -91,6 +92,7 @@ jobs:
               DbHost="${DB_HOST}" \
               DbPort="${DB_PORT}" \
               DbName="${DB_NAME}" \
+              DbSslCaPath="${DB_SSL_CA_PATH}" \
               DbUser="${DB_USER}" \
               DbPassword="${DB_PASSWORD}" \
               JwtSecret="${JWT_SECRET}" \
