@@ -2,7 +2,7 @@
 
 ## Status
 - This directory is the active SteelArt backend workspace.
-- Initial scaffold is already in place, including `infra/sam`, `src/shared`, Lambda handlers, and docs under `docs/`.
+- Initial scaffold is already in place, including root `template.yaml`, root `samconfig.toml`, `src/shared`, Lambda handlers, and docs under `docs/`.
 - The goal is to let a new thread continue from the current backend baseline without rebuilding context from scratch.
 
 ## Read First

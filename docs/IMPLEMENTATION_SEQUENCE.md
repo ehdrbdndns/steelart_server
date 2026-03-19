@@ -35,7 +35,8 @@
 - `pnpm` 기반 기본 스크립트 추가
 - `tsconfig.json` 생성
 - `.env.example` 생성
-- `src/`, `infra/sam/`, `.github/workflows/`, `tests/` 기본 디렉터리 생성
+- `src/`, `.github/workflows/`, `tests/` 기본 디렉터리 생성
+- 루트 `template.yaml`, 루트 `samconfig.toml` 배치
 - `src/lambdas/`, `src/domains/`, `src/shared/` 빈 구조 생성
 - 기본 빌드/타입체크 스크립트 연결
 
@@ -95,11 +96,11 @@
 - `AWS SAM + HTTP API + GitHub Actions` 기준의 배포 골격을 확정한다.
 
 ### 수행 작업
-- `infra/sam/template.yaml` 생성
+- 루트 `template.yaml` 생성
 - `AWS::Serverless::HttpApi` 리소스 정의
 - 도메인 Lambda 리소스 골격 정의
 - 공통 환경 변수 wiring
-- `infra/sam/samconfig.toml` 생성
+- 루트 `samconfig.toml` 생성
 - `.github/workflows/ci.yml` 생성
 - `.github/workflows/deploy.yml` 생성
 - `nodejs24.x`, `arm64`, `esbuild` 기준 설정

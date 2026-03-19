@@ -28,7 +28,7 @@
 
 ## Current Status
 - This directory has completed the initial scaffold stage.
-- `infra/sam`, common runtime modules under `src/shared`, and domain/lambda placeholders already exist.
+- 루트 `template.yaml`, 루트 `samconfig.toml`, 공통 런타임 모듈 `src/shared`, 도메인별 Lambda 핸들러 골격이 이미 존재한다.
 - Continue implementation from the current codebase and local docs instead of treating this folder as empty.
 - Keep local documentation files under `docs/`. Exceptions: root-level `AGENTS.md` and `README.md`.
 - Manage local documentation in Korean.

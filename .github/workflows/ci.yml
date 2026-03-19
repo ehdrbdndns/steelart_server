@@ -6,7 +6,8 @@ on:
       - main
     paths:
       - '.github/workflows/**'
-      - 'infra/sam/**'
+      - 'template.yaml'
+      - 'samconfig.toml'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'src/**'
@@ -17,7 +18,8 @@ on:
       - main
     paths:
       - '.github/workflows/**'
-      - 'infra/sam/**'
+      - 'template.yaml'
+      - 'samconfig.toml'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'src/**'
