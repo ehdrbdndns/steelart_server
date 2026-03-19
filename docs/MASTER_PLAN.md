@@ -54,7 +54,8 @@
 - `tsconfig.json` 구성
 - `.env.example` 구성
 - 기본 lint/test/build 스크립트 구성
-- `src`, `infra/sam`, `.github/workflows`, `tests` 구조 생성
+- `src`, `.github/workflows`, `tests` 구조 생성
+- 루트 `template.yaml`, 루트 `samconfig.toml` 배치
 
 ### 2. 공통 런타임
 - 환경변수 파서
@@ -67,8 +68,8 @@
 - geo distance 유틸
 
 ### 3. SAM 및 자동 배포
-- `infra/sam/template.yaml`
-- `infra/sam/samconfig.toml`
+- `template.yaml`
+- `samconfig.toml`
 - 도메인 Lambda 리소스 선언
 - `AWS::Serverless::HttpApi` 선언
 - 환경 변수 wiring

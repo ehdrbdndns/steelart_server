@@ -10,12 +10,11 @@ lint = false
 [default.deploy.parameters]
 stack_name = "steelart-server-dev"
 resolve_s3 = true
-region = "ap-northeast-2"
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = false
 fail_on_empty_changeset = false
 s3_prefix = "steelart-server-dev"
-parameter_overrides = "AppName=\"steelart-server\" StageName=\"dev\" DbHost=\"steelart.c7kgswkca535.ap-northeast-2.rds.amazonaws.com\" DbPort=\"3306\" DbName=\"steelart\" DbUser=\"admin\" KakaoClientId=\"2e3fb42b68b554a964c6cc02cfdeccf3\" AppleClientId=\"com.steelart.app\" LogLevel=\"info\""
+parameter_overrides = "AppName=\"steelart-server\" StageName=\"dev\" DbHost=\"steelart.c7kgswkca535.ap-northeast-2.rds.amazonaws.com\" DbPort=\"3306\" DbName=\"steelart\" DbUser=\"admin\" KakaoClientId=\"ed7bf1d4c026d33c7deeb460ff3bfe1f\" AppleClientId=\"com.steelart.app\" LogLevel=\"info\""
 image_repositories = []
 
 

@@ -117,7 +117,7 @@ Resources:
   AuthFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../../
+      CodeUri: ./
       Handler: src/lambdas/auth/handler.handler
       Events:
         AuthProxyRoute:
@@ -140,7 +140,7 @@ Resources:
   UsersFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../../
+      CodeUri: ./
       Handler: src/lambdas/users/handler.handler
       Events:
         UsersProxyRoute:
@@ -170,7 +170,7 @@ Resources:
   HomeFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../../
+      CodeUri: ./
       Handler: src/lambdas/home/handler.handler
       Events:
         HomeProxyRoute:
@@ -193,7 +193,7 @@ Resources:
   SearchFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../../
+      CodeUri: ./
       Handler: src/lambdas/search/handler.handler
       Events:
         SearchProxyRoute:
@@ -216,7 +216,7 @@ Resources:
   ArtworksFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../../
+      CodeUri: ./
       Handler: src/lambdas/artworks/handler.handler
       Events:
         ArtworksBaseRoute:
@@ -246,7 +246,7 @@ Resources:
   MapFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../../
+      CodeUri: ./
       Handler: src/lambdas/map/handler.handler
       Events:
         MapProxyRoute:
@@ -269,7 +269,7 @@ Resources:
   CoursesFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../../
+      CodeUri: ./
       Handler: src/lambdas/courses/handler.handler
       Events:
         CoursesBaseRoute:

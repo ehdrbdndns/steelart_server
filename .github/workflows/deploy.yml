@@ -6,7 +6,8 @@ on:
       - main
     paths:
       - '.github/workflows/**'
-      - 'infra/sam/**'
+      - 'template.yaml'
+      - 'samconfig.toml'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'src/**'
@@ -68,7 +69,7 @@ jobs:
           role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
 
       - name: Validate SAM template
-        run: sam validate --template-file infra/sam/template.yaml --config-file samconfig.toml --config-env "${SAM_CONFIG_ENV}"
+        run: sam validate --template-file template.yaml --config-file samconfig.toml --config-env "${SAM_CONFIG_ENV}"
 
       - name: Build SAM application
         run: pnpm sam:build
@@ -79,7 +80,7 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           sam deploy \
-            --template-file infra/sam/template.yaml \
+            --template-file .aws-sam/build/template.yaml \
             --config-file samconfig.toml \
             --config-env "${SAM_CONFIG_ENV}" \
             --no-confirm-changeset \

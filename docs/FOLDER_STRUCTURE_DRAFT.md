@@ -27,10 +27,8 @@ steelart_server/
   tsconfig.json
   .env.example
   pnpm-lock.yaml
-  infra/
-    sam/
-      template.yaml
-      samconfig.toml
+  template.yaml
+  samconfig.toml
   src/
     lambdas/
       auth/
@@ -138,9 +136,10 @@ steelart_server/
 - 설계 문서, 구현 계획, 리서치 메모를 한 위치에서 관리할 수 있다.
 - 서버 부트스트랩 전에 문서 기준 합의를 유지하기 쉽다.
 
-### `infra/sam`
-- `AWS SAM` 템플릿과 배포 설정을 런타임 코드와 분리한다.
-- API Gateway, Lambda, 환경 변수 wiring, 배포 설정을 한 곳에서 관리할 수 있다.
+### 루트 `template.yaml`, `samconfig.toml`
+- 현재 `steelart_server`는 단일 `AWS SAM` 애플리케이션이므로 루트 배치가 더 단순하다.
+- `sam build`, `sam validate`, `sam deploy --guided`, AWS Toolkit 경로 해석이 기본 경로로 맞아 실수 여지가 줄어든다.
+- API Gateway, Lambda, 환경 변수 wiring, 배포 설정을 루트 기준으로 바로 찾을 수 있다.
 
 ### `src/lambdas`
 - 배포 단위를 명확하게 드러낸다.
@@ -185,8 +184,8 @@ steelart_server/
 - `package.json`
 - `tsconfig.json`
 - `.env.example`
-- `infra/sam/template.yaml`
-- `infra/sam/samconfig.toml`
+- `template.yaml`
+- `samconfig.toml`
 - `.github/workflows/ci.yml`
 - `.github/workflows/deploy.yml`
 - `src/shared/env/server.ts`
