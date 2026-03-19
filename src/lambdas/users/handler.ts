@@ -5,7 +5,7 @@ import type {
   Context,
 } from 'aws-lambda';
 
-import { AppError, toAppError } from '../../shared/api/errors.js';
+import { AppError, serializeErrorForLog, toAppError } from '../../shared/api/errors.js';
 import { createHttpRequest } from '../../shared/api/route.js';
 import { fail, ok } from '../../shared/api/response.js';
 import { requireAuth } from '../../shared/auth/guard.js';
@@ -126,7 +126,10 @@ export async function handleUsersRequest(
     const appError = toAppError(error);
 
     logger.error('Users handler failed', {
+      appMessage: appError.message,
       code: appError.code,
+      details: appError.details ?? null,
+      error: serializeErrorForLog(error),
       statusCode: appError.statusCode,
     });
 

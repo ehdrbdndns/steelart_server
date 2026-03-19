@@ -69,6 +69,13 @@ export interface SerializedAppError {
   message: string;
 }
 
+export interface SerializedErrorForLog {
+  cause?: SerializedErrorForLog | unknown;
+  message?: string;
+  name?: string;
+  stack?: string;
+}
+
 export function getAppErrorStatusCode(code: AppErrorCode): number {
   return APP_ERROR_STATUS_CODES[code];
 }
@@ -107,4 +114,22 @@ export function serializeAppError(error: unknown): SerializedAppError {
     message,
     ...(appError.details === undefined ? {} : { details: appError.details }),
   };
+}
+
+export function serializeErrorForLog(error: unknown): SerializedErrorForLog | unknown {
+  if (error instanceof Error) {
+    const serialized: SerializedErrorForLog = {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+    };
+
+    if ('cause' in error && error.cause !== undefined) {
+      serialized.cause = serializeErrorForLog(error.cause);
+    }
+
+    return serialized;
+  }
+
+  return error;
 }
