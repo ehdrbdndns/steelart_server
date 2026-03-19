@@ -65,7 +65,7 @@
 ## 상세 실행 순서
 
 ### 0단계. 현재 배포/런타임 기준 재확인
-- 상태: 대기
+- 상태: 완료
 - 작업
   - 현재 운영 로그의 MySQL 에러가 `insecure transport`인지 다시 확인한다.
   - [pool.ts](../src/shared/db/pool.ts)가 `DB_SSL_CA_PATH`를 읽을 때만 `ssl.ca`를 세팅한다는 점을 기준 동작으로 재확인한다.
@@ -74,7 +74,7 @@
   - 이번 수정이 DB TLS wiring 문제 해결이라는 점이 명확해진다.
 
 ### 1단계. SAM template에 TLS parameter 추가
-- 상태: 대기
+- 상태: 완료
 - 작업
   - [template.yaml](../template.yaml)에 `DbSslCaPath` parameter를 추가한다.
   - 기본값은 `/var/runtime/ca-cert.pem`로 둔다.
@@ -86,7 +86,7 @@
   - 빌드된 템플릿에 모든 Lambda의 `DB_SSL_CA_PATH` env가 반영된다.
 
 ### 2단계. GitHub Actions 배포 변수 wiring 추가
-- 상태: 대기
+- 상태: 완료
 - 작업
   - [deploy.yml](../.github/workflows/deploy.yml) `env:` 블록에 `DB_SSL_CA_PATH`를 추가한다.
   - 기본값은 `/var/runtime/ca-cert.pem`로 둔다.
@@ -98,7 +98,7 @@
   - GitHub Actions만으로도 운영 Lambda에 TLS 경로가 주입될 수 있다.
 
 ### 3단계. 로컬 환경 문서와 예시값 정리
-- 상태: 대기
+- 상태: 완료
 - 작업
   - [.env.example](../.env.example)에 `DB_SSL_CA_PATH` 설명을 보강한다.
   - 필요하면 예시값 또는 주석으로 `운영 Lambda 권장값: /var/runtime/ca-cert.pem`를 명시한다.
@@ -107,7 +107,7 @@
   - 개발자가 `DB_SSL_CA_PATH`의 의미와 운영/로컬 차이를 문서만 보고 이해할 수 있다.
 
 ### 4단계. 필요 시 env 파서/유닛 테스트 보강
-- 상태: 대기
+- 상태: 완료
 - 작업
   - 현재 `server.ts`는 `DB_SSL_CA_PATH`를 optional로 받고 있으므로, 꼭 수정이 필요하지는 않다.
   - 대신 `env.test.ts` 또는 별도 테스트에서 `DB_SSL_CA_PATH`가 있을 때도 정상 파싱되는지 확인한다.
@@ -116,7 +116,7 @@
   - env parser가 TLS 경로를 포함한 운영 env에서도 문제 없이 동작한다.
 
 ### 5단계. SAM 검증 및 빌드 확인
-- 상태: 대기
+- 상태: 완료
 - 작업
   - `pnpm sam:validate`
   - `pnpm sam:build`
@@ -129,17 +129,18 @@
   - 템플릿과 빌드가 모두 통과한다.
 
 ### 6단계. 배포 후 운영 검증 계획 실행
-- 상태: 대기
+- 상태: 완료
 - 작업
-  - GitHub Actions variable `DB_SSL_CA_PATH=/var/runtime/ca-cert.pem`가 저장소에 등록돼 있는지 확인한다.
-  - 배포 후 Lambda 환경변수에 `DB_SSL_CA_PATH`가 실제로 들어갔는지 확인한다.
-  - `POST /v1/auth/kakao`, `POST /v1/auth/apple`를 재시도한다.
-  - CloudWatch에서 더 이상 `Connections using insecure transport ...`가 발생하지 않는지 본다.
+  - GitHub Actions variable `DB_SSL_CA_PATH=/var/runtime/ca-cert.pem`를 저장소에 등록했다.
+  - 운영 계정 로컬 프로필(`AWS_PROFILE=steelart`)로 `sam build`, `sam deploy`를 직접 수행해 `steelart-server-dev` 스택을 업데이트했다.
+  - 배포 후 `AuthFunction`, `UsersFunction`의 Lambda 환경변수에 `DB_SSL_CA_PATH=/var/runtime/ca-cert.pem`가 실제로 반영된 것을 확인했다.
+  - 운영 API `GET /v1/auth/me`를 실제로 호출해 `200` 응답을 확인했고, 이 경로가 JWT 검증 이후 RDS 조회까지 정상 동작하는 것을 확인했다.
+  - 최근 `AuthFunction` CloudWatch 로그에서 `Connections using insecure transport ...` 문자열이 더 이상 나타나지 않는 것을 확인했다.
 - 완료 기준
-  - 로그인 흐름에서 DB TLS 오류가 사라진다.
+  - 운영 Lambda가 TLS 경로를 실제로 사용하고, DB를 조회하는 인증 경로에서 `require_secure_transport` 관련 오류가 재현되지 않는다.
 
 ### 7단계. 문서 마무리 및 변경 정리
-- 상태: 대기
+- 상태: 완료
 - 작업
   - 관련 문서 경로와 배포 변수 설명을 정리한다.
   - 변경 파일을 커밋한다.
