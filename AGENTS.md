@@ -37,7 +37,9 @@
 - Base path is `/v1`.
 - There is no logout API.
 - There is no nickname duplication-check API.
-- Home data is not fetched via a single aggregate API.
+- Home first render uses `GET /v1/home` aggregate API.
+- `GET /v1/home/recommended-courses` remains separate because it is below the fold in UI.
+- `GET /v1/home/artworks` can still be used for zone switching or partial refresh after initial render.
 - Home "region" should be interpreted as `zones`.
 - Artwork search is one API and matches artwork title, artist name, and place name.
 - Recent search history is app-local only using `AsyncStorage`.
