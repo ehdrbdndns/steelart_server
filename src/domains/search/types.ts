@@ -1,5 +1,5 @@
 import type {
-  ArtworkSearchCard,
+  ArtworkCard,
   ArtworkSort,
 } from '../artworks/types.js';
 
@@ -23,8 +23,18 @@ export interface SearchArtworksInput {
   sort: ArtworkSort;
 }
 
+export interface SearchArtworkCard extends ArtworkCard {
+  thumbnail_image_height: number | null;
+  thumbnail_image_width: number | null;
+}
+
+export interface SearchArtworkQueryResult {
+  artworks: SearchArtworkCard[];
+  total: number;
+}
+
 export interface SearchArtworksResponse {
-  artworks: ArtworkSearchCard[];
+  artworks: SearchArtworkCard[];
   last: boolean;
   page: number;
   size: number;

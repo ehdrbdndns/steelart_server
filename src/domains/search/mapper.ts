@@ -1,13 +1,13 @@
 import { mapArtworkCard } from '../artworks/mapper.js';
-import type { ArtworkSearchCard } from '../artworks/types.js';
 import type {
   SearchArtworksResponse,
+  SearchArtworkCard,
   SearchAutocompleteResponse,
   SearchAutocompleteSuggestion,
 } from './types.js';
 
 export function mapSearchArtworksResponse(
-  artworks: ArtworkSearchCard[],
+  artworks: SearchArtworkCard[],
   page: number,
   size: number,
   totalElements: number,

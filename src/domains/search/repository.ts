@@ -1,13 +1,13 @@
 import type { RowDataPacket } from 'mysql2/promise';
 
 import type {
-  ArtworkSearchCard,
-  ArtworkSearchResult,
   ArtworkSort,
 } from '../artworks/types.js';
 import { withConnection } from '../../shared/db/pool.js';
 import type {
   SearchArtworksInput,
+  SearchArtworkCard,
+  SearchArtworkQueryResult,
   SearchAutocompleteInput,
   SearchAutocompleteSuggestion,
   SearchAutocompleteType,
@@ -54,7 +54,7 @@ const THUMBNAIL_JOIN_SQL = `
   ) thumb ON thumb.artwork_id = a.id
 `;
 
-function mapSearchArtworkRow(row: ArtworkCardRow): ArtworkSearchCard {
+function mapSearchArtworkRow(row: ArtworkCardRow): SearchArtworkCard {
   return {
     artist_name_en: row.artist_name_en,
     artist_name_ko: row.artist_name_ko,
@@ -125,7 +125,7 @@ const FESTIVAL_META_JOIN_SQL = `
 
 export interface SearchRepository {
   autocomplete(input: SearchAutocompleteInput, userId: number): Promise<SearchAutocompleteSuggestion[]>;
-  searchArtworks(input: SearchArtworksInput, userId: number): Promise<ArtworkSearchResult>;
+  searchArtworks(input: SearchArtworksInput, userId: number): Promise<SearchArtworkQueryResult>;
 }
 
 export function createSearchRepository(): SearchRepository {
