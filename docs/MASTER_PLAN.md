@@ -96,8 +96,7 @@
 - Apple `identityToken` 우선 검증
 
 ### 5. 읽기 중심 콘텐츠 API
-- `GET /v1/home/banners`
-- `GET /v1/home/zones`
+- `GET /v1/home`
 - `GET /v1/home/artworks`
 - `GET /v1/home/recommended-courses`
 - `GET /v1/search/artworks`
@@ -152,6 +151,7 @@
 - 읽기 API 응답 구조 고정
 - 다국어 필드와 이미지/오디오/좌표 매핑 확정
 - 검색과 거리 계산 규칙 구현
+- 현재 상태: `진행 중`
 
 ### 5단계. 코스/좋아요 구현
 - 코스 조회/생성/수정
