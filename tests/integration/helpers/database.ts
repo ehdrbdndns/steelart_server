@@ -76,8 +76,19 @@ export async function prepareIntegrationDatabase(): Promise<void> {
 export async function resetIntegrationDatabase(): Promise<void> {
   const pool = getPool();
 
+  await pool.execute('DELETE FROM course_checkins');
   await pool.execute('DELETE FROM user_refresh_tokens');
   await pool.execute('DELETE FROM user_auth_providers');
+  await pool.execute('DELETE FROM artwork_likes');
+  await pool.execute('DELETE FROM course_items');
+  await pool.execute('DELETE FROM artwork_festivals');
+  await pool.execute('DELETE FROM artwork_images');
+  await pool.execute('DELETE FROM courses');
+  await pool.execute('DELETE FROM home_banners');
+  await pool.execute('DELETE FROM artworks');
+  await pool.execute('DELETE FROM places');
+  await pool.execute('DELETE FROM artists');
+  await pool.execute('DELETE FROM zones');
   await pool.execute('DELETE FROM users');
 }
 
