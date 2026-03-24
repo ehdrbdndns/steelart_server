@@ -201,13 +201,6 @@ export interface ArtworksRepository {
   listArtworkFilters(): Promise<{ festivalYears: string[]; zones: ZonePlaceFilterOption[] }>;
   listArtworks(input: ArtworkListInput, userId: number): Promise<{ artworks: ArtworkArchiveItem[]; total: number }>;
   listHomeArtworkCards(zoneId: number, userId: number): Promise<ArtworkCard[]>;
-  listMapArtworkCards(
-    filters: {
-      q?: string;
-      zoneId?: number;
-    },
-    userId: number,
-  ): Promise<ArtworkCard[]>;
 }
 
 export const artworksRepository: ArtworksRepository = {
@@ -442,67 +435,4 @@ export const artworksRepository: ArtworksRepository = {
     });
   },
 
-  async listMapArtworkCards(filters, userId) {
-    return withConnection(async (connection) => {
-      const params: SqlParam[] = [userId];
-      const whereClauses = [
-        'a.deleted_at IS NULL',
-        'ar.deleted_at IS NULL',
-        'p.deleted_at IS NULL',
-      ];
-
-      if (filters.zoneId !== undefined) {
-        whereClauses.push('p.zone_id = ?');
-        params.push(filters.zoneId);
-      }
-
-      if (filters.q) {
-        const keyword = `%${filters.q}%`;
-        whereClauses.push(`(
-          a.title_ko LIKE ?
-          OR a.title_en LIKE ?
-          OR ar.name_ko LIKE ?
-          OR ar.name_en LIKE ?
-          OR p.name_ko LIKE ?
-          OR p.name_en LIKE ?
-        )`);
-        params.push(keyword, keyword, keyword, keyword, keyword, keyword);
-      }
-
-      const [rows] = await connection.execute<ArtworkCardRow[]>(
-        `SELECT
-            a.id,
-            a.title_ko,
-            a.title_en,
-            ar.name_ko AS artist_name_ko,
-            ar.name_en AS artist_name_en,
-            p.name_ko AS place_name_ko,
-            p.name_en AS place_name_en,
-            thumb.image_url AS thumbnail_image_url,
-            thumb.image_width AS thumbnail_image_width,
-            thumb.image_height AS thumbnail_image_height,
-            CAST(p.lat AS DOUBLE) AS lat,
-            CAST(p.lng AS DOUBLE) AS lng,
-            p.zone_id AS zone_id,
-            CASE WHEN al.user_id IS NULL THEN 0 ELSE 1 END AS liked,
-            a.category,
-            a.production_year,
-            festivals.festival_years_summary,
-            festivals.latest_festival_year,
-            festivals.oldest_festival_year,
-            a.updated_at
-         FROM artworks a
-         INNER JOIN artists ar ON ar.id = a.artist_id
-         INNER JOIN places p ON p.id = a.place_id
-         ${THUMBNAIL_JOIN_SQL}
-         ${FESTIVAL_META_JOIN_SQL}
-         LEFT JOIN artwork_likes al ON al.artwork_id = a.id AND al.user_id = ?
-         WHERE ${whereClauses.join(' AND ')}
-         ORDER BY a.updated_at DESC`,
-        params,
-      );
-
-      return rows.map(mapArtworkCardRow);
-    });
-  },
 };
