@@ -14,15 +14,18 @@
 - API 계약이나 스키마 가정이 바뀌면 문서도 같은 브랜치에서 같이 수정한다.
 
 ## 브랜치 순서 요약
-1. `codex/01-bootstrap-project`
-2. `codex/02-shared-runtime`
-3. `codex/03-sam-http-api-cicd`
-4. `codex/04-auth-users`
+1. `codex/01-bootstrap-project` 완료
+2. `codex/02-shared-runtime` 완료
+3. `codex/03-sam-http-api-cicd` 완료
+4. `codex/04-auth-users` 완료
 5. `codex/05-read-content`
 6. `codex/06-courses-engagement`
 7. `codex/07-checkin-hardening`
 
 ## 1단계. 프로젝트 부트스트랩
+
+### 상태
+- 미완료
 
 ### 브랜치명
 - `codex/01-bootstrap-project`
@@ -55,6 +58,9 @@
 - 이후 공통 모듈을 넣을 위치가 확정되어 있다.
 
 ## 2단계. 공통 런타임 구축
+
+### 상태
+- 완료
 
 ### 브랜치명
 - `codex/02-shared-runtime`
@@ -89,6 +95,9 @@
 
 ## 3단계. SAM HTTP API 및 자동 CI/CD
 
+### 상태
+- 완료
+
 ### 브랜치명
 - `codex/03-sam-http-api-cicd`
 
@@ -121,6 +130,9 @@
 - 기본 CI가 타입체크/빌드까지는 검증한다.
 
 ## 4단계. 인증 및 사용자 API
+
+### 상태
+- 완료
 
 ### 브랜치명
 - `codex/04-auth-users`
@@ -168,6 +180,9 @@
 
 ## 5단계. 읽기 중심 콘텐츠 API
 
+### 상태
+- 완료
+
 ### 브랜치명
 - `codex/05-read-content`
 
@@ -175,8 +190,7 @@
 - 홈, 검색, 작품, 지도의 읽기 흐름을 모두 연다.
 
 ### 수행 작업
-- `GET /v1/home/banners`
-- `GET /v1/home/zones`
+- `GET /v1/home`
 - `GET /v1/home/artworks`
 - `GET /v1/home/recommended-courses`
 - `GET /v1/search/artworks`
@@ -191,7 +205,9 @@
 - `home`, `search`, `artworks`, `map` 도메인 읽기 API
 
 ### 검증 기준
-- 홈 배너/존/작품/추천 코스 응답이 분리 API 구조를 만족한다.
+- 홈 첫 렌더가 `GET /v1/home` 한 번으로 배너/존/기본 존 작품 리스트를 받을 수 있다.
+- `GET /v1/home/artworks`가 홈 첫 렌더 이후 zone 전환용 부분 갱신 API로 동작한다.
+- 추천 코스는 `GET /v1/home/recommended-courses`로 분리된 구조를 유지한다.
 - 검색이 작품명, 작가명, 장소명을 기준으로 동작한다.
 - 작품 목록 필터가 `placeId`, `artistType`, `festivalYear` 복수 선택을 지원한다.
 - 작품 상세가 `artwork_festivals` 전체 목록을 포함한다.
@@ -201,6 +217,9 @@
 - 앱의 홈, 작품, 지도 탐색 흐름이 서버 응답 기준으로 재현 가능하다.
 
 ## 6단계. 코스 및 참여 기능
+
+### 상태
+- 미완료
 
 ### 브랜치명
 - `codex/06-courses-engagement`
@@ -235,6 +254,9 @@
 - 앱의 코스 탭과 좋아요 흐름이 서버 응답 기준으로 동작 가능하다.
 
 ## 7단계. 체크인 및 안정화
+
+### 상태
+- 미완료
 
 ### 브랜치명
 - `codex/07-checkin-hardening`
