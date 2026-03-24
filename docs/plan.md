@@ -1,183 +1,302 @@
-# RDS TLS 옵션 1 상세 실행 계획
+# 5단계 읽기 중심 콘텐츠 API 구현 계획
+
+- 작성일: 2026-03-19
+- 대상 단계: `5단계. 읽기 중심 콘텐츠 API`
+- 기준 문서: [research.md](./research.md)
+- 권장 브랜치: `codex/05-read-content`
 
 ## 문서 목적
-- 이 문서는 [research.md](./research.md)에 정리한 `옵션 A. /var/runtime/ca-cert.pem 사용`을 실제 구현으로 옮기기 위한 상세 플랜이다.
-- 현재 문제는 `Amazon RDS for MySQL`이 `require_secure_transport=ON`인데, 배포된 Lambda가 TLS 없이 접속하려고 해서 로그인 API가 `500 INTERNAL_ERROR`로 실패하는 것이다.
-- 이번 플랜은 기능 추가가 아니라 운영 장애를 해소하기 위한 인프라/런타임 wiring 수정에 집중한다.
+- 이 문서는 [research.md](./research.md)에 정리한 5단계 요구사항을 실제 구현 작업 순서로 옮긴 상세 계획이다.
+- 목표는 `home`, `search`, `artworks`, `map` 도메인의 읽기 API를 앱 첫 렌더와 탐색 흐름에 맞게 완성하는 것이다.
+- 구현 범위, 수정 파일, 검증 절차, 리스크 대응을 한 문서에서 바로 확인할 수 있게 정리한다.
 
-## 대상 브랜치
-- 권장 브랜치명: `codex/fix-rds-tls-runtime-ca`
+## 범위
 
-## 기준 문서
-- [research.md](./research.md)
-- [SERVER_ARCHITECTURE_DRAFT.md](./SERVER_ARCHITECTURE_DRAFT.md)
-- [MASTER_PLAN.md](./MASTER_PLAN.md)
-- [IMPLEMENTATION_SEQUENCE.md](./IMPLEMENTATION_SEQUENCE.md)
-- [template.yaml](../template.yaml)
-- [deploy.yml](../.github/workflows/deploy.yml)
-- [pool.ts](../src/shared/db/pool.ts)
-- [server.ts](../src/shared/env/server.ts)
+### 포함
+- `GET /v1/home`
+- `GET /v1/home/artworks`
+- `GET /v1/home/recommended-courses`
+- `GET /v1/search/artworks`
+- `GET /v1/artworks`
+- `GET /v1/artworks/{artworkId}`
+- `GET /v1/artworks/filters`
+- `GET /v1/map/artworks`
+- 작품 카드/상세 공통 read model
+- `artwork_likes` 기반 `liked` 계산
+- 다국어 원본 필드(`*_ko`, `*_en`) 그대로 반환하는 응답 구조
+- unit test / integration test 추가
 
-## 목표
-- 운영 Lambda가 `DB_SSL_CA_PATH=/var/runtime/ca-cert.pem`를 사용해 `mysql2` TLS 연결을 수립하도록 만든다.
-- 카카오 로그인, 애플 로그인처럼 DB write가 포함되는 auth flow에서 더 이상 `Connections using insecure transport are prohibited while --require_secure_transport=ON.` 오류가 나지 않게 한다.
-- 로컬 개발 환경과 운영 배포 환경의 DB SSL 설정 방식을 문서와 스크립트 기준으로 명확하게 분리한다.
+### 제외
+- `GET /v1/home/banners`
+- `GET /v1/home/zones`
+- 작품/코스 좋아요 write API
+- 코스 상세/생성/수정
+- 체크인
+- 배너 action metadata용 스키마 추가
 
-## 이번 변경에 포함하는 범위
-- `template.yaml`에 `DbSslCaPath` parameter 및 Lambda env wiring 추가
-- `deploy.yml`에 `DB_SSL_CA_PATH` GitHub Actions variable wiring 추가
-- `package.json` 또는 배포 스크립트 문구 중 필요한 범위의 설명 정리
-- `.env.example`에 운영 권장값 설명 추가
-- 필요 시 `README.md` 또는 로컬 문서에 운영 배포 변수 안내 추가
-- 최소 단위 테스트 또는 env 파서 테스트 추가
-
-## 이번 변경에서 제외하는 범위
-- 별도 RDS CA PEM 파일을 repo에 추가하는 방식
-- `NODE_EXTRA_CA_CERTS` 기반 전역 trust store 전환
-- `RDS Proxy` 도입
-- DB의 `require_secure_transport` 설정 변경
-- `rejectUnauthorized: false` 같은 우회
-- 인증/사용자 도메인 로직 변경
-
-## 구현 전 고정 결정
-- 1차 해결책은 `/var/runtime/ca-cert.pem`를 사용한다.
-- 현재 [pool.ts](../src/shared/db/pool.ts)의 `DB_SSL_CA_PATH -> readFileSync -> ssl.ca` 구조는 유지한다.
-- 로컬 개발 환경에서는 `DB_SSL_CA_PATH`를 필수로 강제하지 않는다.
-- 운영 배포 환경에서는 GitHub Actions variable `DB_SSL_CA_PATH`를 통해 `/var/runtime/ca-cert.pem`를 주입한다.
-- 이번 단계에서는 애플리케이션 레벨에서 `ssl.rejectUnauthorized=false`를 허용하지 않는다.
+## 고정 구현 기준
+- 홈 첫 렌더는 `GET /v1/home` aggregate API로 처리한다.
+- `GET /v1/home`은 `banners`, `zones`, `selectedZoneId`, `artworks`를 반환한다.
+- `GET /v1/home/recommended-courses`는 분리 유지한다.
+- `GET /v1/home/artworks?zoneId=...`는 zone 전환용 부분 갱신 API로 구현한다.
+- `GET /v1/home/banners`, `GET /v1/home/zones`는 별도 endpoint로 구현하지 않는다.
+- 다국어 필드는 `title_ko`, `title_en`처럼 원본 필드를 그대로 반환한다.
+- `GET /v1/search/artworks`는 `sort=latest|oldest`, `page`, `size`를 받고 `thumbnail_image_url`과 함께 `thumbnail_image_width`, `thumbnail_image_height`, `totalElements`, `last`를 반환한다.
+- `GET /v1/search/autocomplete`는 `q`, `lang`, `size`를 받고 작품명 기준 `suggestions[{ text_ko, text_en, type }]`를 반환한다.
+- `liked`는 `artwork_likes`를 현재 로그인 사용자 기준으로 left join 해서 계산한다.
+- 5단계 읽기 API는 보호 API로 구현한다.
+- `GET /v1/artworks`의 `latest|oldest`는 `festivalYear` 기준 의미로 해석한다.
+- `GET /v1/home`의 `selectedZoneId`는 `sort_order ASC, name_ko ASC` 기준 첫 zone을 사용한다.
+- 배너는 이미지 목록만 반환하고 클릭 action은 이번 단계에서 다루지 않는다.
 
 ## 수정 대상 파일
 
-### 반드시 수정할 파일
-- [template.yaml](../template.yaml)
-- [deploy.yml](../.github/workflows/deploy.yml)
-- [.env.example](../.env.example)
-- [plan.md](./plan.md)
-- [research.md](./research.md)
+### 새로 만들 파일
+- `src/domains/home/types.ts`
+- `src/domains/home/schemas.ts`
+- `src/domains/home/mapper.ts`
+- `src/domains/home/repository.ts`
+- `src/domains/home/service.ts`
+- `src/domains/search/types.ts`
+- `src/domains/search/schemas.ts`
+- `src/domains/search/mapper.ts`
+- `src/domains/search/repository.ts`
+- `src/domains/search/service.ts`
+- `src/domains/artworks/types.ts`
+- `src/domains/artworks/schemas.ts`
+- `src/domains/artworks/mapper.ts`
+- `src/domains/artworks/repository.ts`
+- `src/domains/artworks/service.ts`
+- `src/domains/map/types.ts`
+- `src/domains/map/schemas.ts`
+- `src/domains/map/mapper.ts`
+- `src/domains/map/repository.ts`
+- `src/domains/map/service.ts`
+- `tests/unit/home/home-handler.test.ts`
+- `tests/unit/search/search-handler.test.ts`
+- `tests/unit/artworks/artworks-handler.test.ts`
+- `tests/unit/map/map-handler.test.ts`
+- `tests/integration/content/content-read.integration.test.ts`
 
-### 필요 시 수정할 파일
-- [package.json](../package.json)
-- [README.md](../README.md)
-- [docs/README.md](./README.md)
-- [server.ts](../src/shared/env/server.ts)
-- `tests/unit/env.test.ts`
+### 수정할 파일
+- `src/lambdas/home/handler.ts`
+- `src/lambdas/search/handler.ts`
+- `src/lambdas/artworks/handler.ts`
+- `src/lambdas/map/handler.ts`
+- `STEELART_SERVER_API_DRAFT.md`
+- `docs/research.md`
+- `docs/IMPLEMENTATION_SEQUENCE.md`
+- 필요 시 `docs/MASTER_PLAN.md`
 
-## 상세 실행 순서
+## 구현 순서
 
-### 0단계. 현재 배포/런타임 기준 재확인
-- 상태: 완료
+### 0단계. 계약 최종 고정
+- 상태: `진행 중`
 - 작업
-  - 현재 운영 로그의 MySQL 에러가 `insecure transport`인지 다시 확인한다.
-  - [pool.ts](../src/shared/db/pool.ts)가 `DB_SSL_CA_PATH`를 읽을 때만 `ssl.ca`를 세팅한다는 점을 기준 동작으로 재확인한다.
-  - 배포 템플릿과 workflow에 `DB_SSL_CA_PATH` wiring이 없는지 다시 확인한다.
+  - [research.md](./research.md) 기준으로 home aggregate 구조를 다시 확인한다.
+  - `GET /v1/home/banners`, `GET /v1/home/zones`를 구현 대상에서 제외하는 방향을 유지한다.
+  - `GET /v1/artworks` 정렬 기준이 `festivalYear`라는 점을 코드/테스트에서 일관되게 반영할 수 있도록 명시한다.
 - 완료 기준
-  - 이번 수정이 DB TLS wiring 문제 해결이라는 점이 명확해진다.
+  - 구현 중 다시 뒤집을 결정이 없다고 판단할 수 있다.
 
-### 1단계. SAM template에 TLS parameter 추가
-- 상태: 완료
+### 1단계. 작품 공통 read model 설계
+- 상태: `진행 중`
 - 작업
-  - [template.yaml](../template.yaml)에 `DbSslCaPath` parameter를 추가한다.
-  - 기본값은 `/var/runtime/ca-cert.pem`로 둔다.
-  - `Globals.Function.Environment.Variables`에 `DB_SSL_CA_PATH: !Ref DbSslCaPath`를 추가한다.
-- 고려사항
-  - 모든 Lambda가 공통 DB pool을 쓰므로 `Globals.Function`에 두는 것이 자연스럽다.
-  - `DbSslCaPath`는 secret 값은 아니므로 `NoEcho`는 필요 없다.
+  - `artworks` 도메인에 공통 카드 row 타입과 상세 row 타입을 정의한다.
+  - 작품 카드에서 재사용할 공통 SQL 조인 구조를 `artworks/repository.ts`에 먼저 만든다.
+  - 공통 카드 필드:
+    - `id`
+    - `title_ko`, `title_en`
+    - `artist_name_ko`, `artist_name_en`
+    - `place_name_ko`, `place_name_en`
+    - `thumbnail_image_url`
+    - `liked`
+    - `lat`, `lng`
+    - `zone_id`
+  - 대표 이미지 선택 규칙과 `artwork_likes` join 규칙을 공통화한다.
 - 완료 기준
-  - 빌드된 템플릿에 모든 Lambda의 `DB_SSL_CA_PATH` env가 반영된다.
+  - `home/search/map`이 같은 artwork card query를 재사용할 준비가 된다.
 
-### 2단계. GitHub Actions 배포 변수 wiring 추가
-- 상태: 완료
+### 2단계. artworks 도메인 구현
+- 상태: `진행 중`
 - 작업
-  - [deploy.yml](../.github/workflows/deploy.yml) `env:` 블록에 `DB_SSL_CA_PATH`를 추가한다.
-  - 기본값은 `/var/runtime/ca-cert.pem`로 둔다.
-  - `sam deploy --parameter-overrides`에 `DbSslCaPath="${DB_SSL_CA_PATH}"`를 추가한다.
-- 고려사항
-  - 기존 `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`와 같은 수준의 운영 variable로 다룬다.
-  - built template 사용과 `../../samconfig.toml` 경로 수정은 유지한다.
+  - `GET /v1/artworks`
+    - multi filter parsing
+    - `festivalYear` 기준 정렬
+    - pagination
+    - 응답 필드는 `id`, `title_*`, `artist_name_*`, `address`, `thumbnail_image_*`, `liked`로 제한
+  - `GET /v1/artworks/{artworkId}`
+    - 상세 조인
+    - `artwork_images`
+    - `artwork_festivals`
+    - `liked`
+  - `GET /v1/artworks/filters`
+    - `zones -> places`
+    - `artistTypes`
+    - `festivalYears`
+  - mapper에서 bilingual 응답 필드를 그대로 유지한다.
 - 완료 기준
-  - GitHub Actions만으로도 운영 Lambda에 TLS 경로가 주입될 수 있다.
+  - 작품 목록/상세/필터 API의 core SQL과 mapper가 완성된다.
 
-### 3단계. 로컬 환경 문서와 예시값 정리
-- 상태: 완료
+### 3단계. search, map 도메인 구현
+- 상태: `진행 중`
 - 작업
-  - [.env.example](../.env.example)에 `DB_SSL_CA_PATH` 설명을 보강한다.
-  - 필요하면 예시값 또는 주석으로 `운영 Lambda 권장값: /var/runtime/ca-cert.pem`를 명시한다.
-  - 로컬 DB가 TLS를 강제하지 않는 경우 비워둘 수 있다는 점도 같이 적는다.
+  - `GET /v1/search/artworks`
+    - 작품명/작가명/장소명 검색
+    - 빈 `q` 처리
+    - `sort=latest|oldest`
+    - `page`, `size`
+    - `totalElements`, `last`
+  - `GET /v1/search/autocomplete`
+    - 작품명 자동완성
+    - `lang=ko|en`
+    - `size`
+    - `ARTWORK_TITLE`
+  - `GET /v1/map/artworks`
+    - `lat/lng/radiusMeters` 필수
+    - 반경 내 지도 작품 조회
+    - 최소 필드(`id`, `title_*`, `lat/lng`, `liked`)만 반환
+    - SQL 거리 계산 후 거리순 정렬
+  - search와 map은 각 도메인 repository에서 필요한 read query를 직접 관리한다.
+  - 자동완성 SQL은 search repository에서 직접 관리한다.
 - 완료 기준
-  - 개발자가 `DB_SSL_CA_PATH`의 의미와 운영/로컬 차이를 문서만 보고 이해할 수 있다.
+  - 검색과 지도 API가 같은 작품 카드 read model 위에서 동작한다.
 
-### 4단계. 필요 시 env 파서/유닛 테스트 보강
-- 상태: 완료
+### 4단계. home 도메인 구현
+- 상태: `진행 중`
 - 작업
-  - 현재 `server.ts`는 `DB_SSL_CA_PATH`를 optional로 받고 있으므로, 꼭 수정이 필요하지는 않다.
-  - 대신 `env.test.ts` 또는 별도 테스트에서 `DB_SSL_CA_PATH`가 있을 때도 정상 파싱되는지 확인한다.
-  - 템플릿 변경 자체는 unit test가 아니라 `sam validate`, `sam build`로 검증한다.
+  - `GET /v1/home`
+    - 활성 배너 목록 조회
+    - zone 목록 조회
+    - 첫 zone을 `selectedZoneId`로 선택
+    - 해당 zone의 작품 카드 목록 조회
+  - `GET /v1/home/artworks`
+    - `zoneId` 기준 부분 갱신
+  - `GET /v1/home/recommended-courses`
+    - `is_official = 1`
+    - 대표 썸네일
+    - `thumbnail_image_width`, `thumbnail_image_height`
+    - 현재 사용자 기준 `stamped`
+  - `home` service에서 aggregate 응답 조립만 하고, SQL은 repository에 둔다.
 - 완료 기준
-  - env parser가 TLS 경로를 포함한 운영 env에서도 문제 없이 동작한다.
+  - 홈 첫 렌더용 aggregate 응답과 zone 전환용 부분 갱신 응답이 모두 동작한다.
 
-### 5단계. SAM 검증 및 빌드 확인
-- 상태: 완료
+### 5단계. Lambda handler 연결
+- 상태: `진행 중`
 - 작업
-  - `pnpm sam:validate`
-  - `pnpm sam:build`
-  - 필요 시 `sam validate --lint --template-file template.yaml --config-file samconfig.toml --config-env default`
-- 확인 포인트
-  - `DbSslCaPath` parameter 선언 오류가 없는지
-  - `Globals.Function.Environment.Variables.DB_SSL_CA_PATH`가 템플릿 문법상 유효한지
-  - built template에 env가 반영되는지
+  - `home`, `search`, `artworks`, `map` handler에서 라우팅과 method 검증 구현
+  - 모든 read API에 `requireAuth` 적용
+  - query/body parsing은 `parseInput`과 각 도메인 schema를 사용
+  - 응답은 기존 `{ data, meta, error }` envelope을 그대로 사용
 - 완료 기준
-  - 템플릿과 빌드가 모두 통과한다.
+  - placeholder handler가 모두 실제 도메인 service로 연결된다.
 
-### 6단계. 배포 후 운영 검증 계획 실행
-- 상태: 완료
+### 6단계. unit test 작성
+- 상태: `진행 중`
 - 작업
-  - GitHub Actions variable `DB_SSL_CA_PATH=/var/runtime/ca-cert.pem`를 저장소에 등록했다.
-  - 운영 계정 로컬 프로필(`AWS_PROFILE=steelart`)로 `sam build`, `sam deploy`를 직접 수행해 `steelart-server-dev` 스택을 업데이트했다.
-  - 배포 후 `AuthFunction`, `UsersFunction`의 Lambda 환경변수에 `DB_SSL_CA_PATH=/var/runtime/ca-cert.pem`가 실제로 반영된 것을 확인했다.
-  - 운영 API `GET /v1/auth/me`를 실제로 호출해 `200` 응답을 확인했고, 이 경로가 JWT 검증 이후 RDS 조회까지 정상 동작하는 것을 확인했다.
-  - 최근 `AuthFunction` CloudWatch 로그에서 `Connections using insecure transport ...` 문자열이 더 이상 나타나지 않는 것을 확인했다.
+  - handler 테스트
+    - 홈 aggregate 응답
+    - zone artwork 부분 갱신
+    - 검색 query validation
+    - 작품 목록 필터/정렬
+    - 지도 lat/lng validation
+  - mapper 테스트
+    - bilingual 필드 유지
+    - liked / distance field 반영
+  - schema 테스트
+    - `zoneId`
+    - `page/size`
+    - multi filter
+    - map 좌표
 - 완료 기준
-  - 운영 Lambda가 TLS 경로를 실제로 사용하고, DB를 조회하는 인증 경로에서 `require_secure_transport` 관련 오류가 재현되지 않는다.
+  - 도메인별 unit test가 추가되고, 테스트 위에 한글 설명 주석이 붙어 있다.
 
-### 7단계. 문서 마무리 및 변경 정리
-- 상태: 완료
+### 7단계. integration test 작성
+- 상태: `진행 중`
 - 작업
-  - 관련 문서 경로와 배포 변수 설명을 정리한다.
-  - 변경 파일을 커밋한다.
+  - 실제 integration DB 기준으로 content read 시나리오 추가
+  - 최소 시나리오
+    - `GET /v1/home`
+    - `GET /v1/home/artworks?zoneId=...`
+    - `GET /v1/home/recommended-courses`
+    - `GET /v1/search/artworks?q=...&sort=latest&page=1&size=20`
+    - `GET /v1/search/autocomplete?q=...&lang=ko&size=10`
+    - `GET /v1/artworks`
+    - `GET /v1/artworks/{id}`
+    - `GET /v1/artworks/filters`
+    - `GET /v1/map/artworks?lat=...&lng=...`
 - 완료 기준
-  - 변경 이유와 운영 영향 범위가 문서와 커밋 메시지만으로도 이해 가능하다.
+  - handler -> service -> repository -> DB 흐름이 실제로 검증된다.
 
-## 검증 체크리스트
+### 8단계. 문서 정리
+- 상태: `진행 중`
+- 작업
+  - 루트 API 초안에 stage 5 구현 내용 반영
+  - [research.md](./research.md)의 미정 항목 정리
+  - [IMPLEMENTATION_SEQUENCE.md](./IMPLEMENTATION_SEQUENCE.md) 5단계 상태 업데이트
+  - 필요 시 [MASTER_PLAN.md](./MASTER_PLAN.md)도 맞춤
+- 완료 기준
+  - 코드와 문서가 같은 계약을 가리킨다.
+
+## 검증 절차
+
+### 필수 검증
+- `pnpm typecheck`
 - `pnpm test`
+- `pnpm test:integration`
 - `pnpm sam:validate`
 - `pnpm sam:build`
-- 배포 후 Lambda 환경변수에 `DB_SSL_CA_PATH` 존재 확인
-- `POST /v1/auth/kakao` 재시도
-- `POST /v1/auth/apple` 재시도
-- CloudWatch에서 `Connections using insecure transport ...` 오류 제거 확인
+
+### 수동 확인 포인트
+- `GET /v1/home`
+  - `banners`, `zones`, `selectedZoneId`, `artworks`가 한 응답에 들어온다.
+- `GET /v1/home/artworks?zoneId=...`
+  - 전달한 zone 기준 작품만 바뀐다.
+- `GET /v1/home/recommended-courses`
+  - 공식 코스만 내려온다.
+- `GET /v1/search/artworks?q=...`
+  - 작품 검색은 작품명/작가명/장소명 매칭이 모두 동작한다.
+  - 자동완성은 작품명 후보만 반환한다.
+- `GET /v1/artworks`
+  - multi filter가 동작한다.
+- `GET /v1/artworks/{artworkId}`
+  - `festival_years`, `images`, `liked`가 모두 내려온다.
+- `GET /v1/map/artworks?lat=...&lng=...&radiusMeters=...`
+  - 반경 내 작품만 최소 필드로 반환된다.
 
 ## 리스크와 대응
 
-### 리스크 1. `/var/runtime/ca-cert.pem`가 기대와 다를 수 있음
+### 1. `festivalYear` 정렬 구현 복잡도
+- 위험
+  - 작품이 여러 축제 연도를 가지면 list 정렬이 단순하지 않다.
 - 대응
-  - AWS 공식 문서 기준 경로를 사용한다.
-  - 서울 리전은 신규 리전이 아니므로 1차 운영 대응으로는 충분하다.
+  - artwork별 대표 festival year 계산 규칙을 repository에서 먼저 고정한다.
 
-### 리스크 2. GitHub Actions variable 미설정
+### 2. home aggregate 응답 크기 증가
+- 위험
+  - 첫 렌더 최적화가 목적이지만, artwork 카드 수를 너무 크게 잡으면 오히려 느려질 수 있다.
 - 대응
-  - workflow 기본값을 `/var/runtime/ca-cert.pem`로 둔다.
-  - 저장소 variable이 없더라도 기본 동작은 유지되게 한다.
+  - `GET /v1/home`의 `artworks` 개수는 제한된 기본 개수로 둔다.
 
-### 리스크 3. DB TLS 오류 외 다른 오류가 뒤이어 드러날 수 있음
+### 3. 다국어 필드 확장에 따른 mapper 중복
+- 위험
+  - `*_ko`, `*_en` 필드가 많아져 mapper가 장황해질 수 있다.
 - 대응
-  - 이번 수정 후에는 적어도 TLS 오류는 사라져야 한다.
-  - 이후 발생하는 오류는 현재 개선된 구조화 로그로 분리 추적한다.
+  - card/detail mapper를 분리하고, bilingual field mapping helper는 최소 범위에서만 둔다.
+
+### 4. `artwork_likes` join에 따른 목록 성능
+- 위험
+  - list/detail/search/map 전부 `liked`를 계산하면 조인이 반복된다.
+- 대응
+  - artwork 공통 read query에 `LEFT JOIN artwork_likes ... AND user_id = ?`를 통일하고, explain 필요 시 인덱스 상태를 다시 확인한다.
 
 ## 완료 기준
-- 모든 Lambda가 `DB_SSL_CA_PATH` 환경변수를 받는다.
-- 운영 배포가 built template 기준으로 TLS 경로까지 포함해 완료된다.
-- 카카오/애플 로그인에서 `require_secure_transport` 관련 DB 오류가 사라진다.
-- 문서와 배포 설정이 현재 런타임 동작과 일치한다.
+- 5단계 범위의 8개 read API가 구현된다.
+- 홈 첫 렌더는 `GET /v1/home` 하나로 above-the-fold 데이터를 받을 수 있다.
+- 추천 코스는 분리 API로 유지된다.
+- 응답은 bilingual 필드를 그대로 반환한다.
+- unit / integration / SAM 검증이 모두 통과한다.
+- 루트 API 문서와 로컬 문서가 구현 기준과 일치한다.
 
 ## 한 줄 결론
-- 이번 변경은 `pool.ts`의 기존 SSL 구조를 유지한 채, `template.yaml`과 `deploy.yml`에 `DB_SSL_CA_PATH=/var/runtime/ca-cert.pem`를 실제로 주입해 운영 RDS TLS 연결을 복구하는 작업이다.
+- 5단계는 `artworks` 도메인이 아카이브/상세 read model을 담당하고, `home/search/map`은 각자 유스케이스별 query를 직접 관리하며, 홈 첫 렌더는 `GET /v1/home` aggregate API로 최적화하는 것이 핵심이다.

@@ -178,6 +178,13 @@ Resources:
       CodeUri: ./
       Handler: src/lambdas/home/handler.handler
       Events:
+        HomeBaseRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v1/home
+            PayloadFormatVersion: '2.0'
         HomeProxyRoute:
           Type: HttpApi
           Properties:
