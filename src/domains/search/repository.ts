@@ -132,31 +132,86 @@ export function createSearchRepository(): SearchRepository {
   return {
     async autocomplete(input, _userId) {
       return withConnection(async (connection) => {
-        const searchColumn = input.lang === 'en'
+        const artworkSearchColumn = input.lang === 'en'
           ? 'a.title_en'
           : 'a.title_ko';
+        const artistSearchColumn = input.lang === 'en'
+          ? 'ar.name_en'
+          : 'ar.name_ko';
+        const placeSearchColumn = input.lang === 'en'
+          ? 'p.name_en'
+          : 'p.name_ko';
         const prefixKeyword = `${input.q}%`;
         const containsKeyword = `%${input.q}%`;
         const params: SqlParam[] = [
+          prefixKeyword,
           containsKeyword,
           prefixKeyword,
+          containsKeyword,
+          prefixKeyword,
+          containsKeyword,
           input.size,
         ];
         const [rows] = await connection.execute<SearchSuggestionRow[]>(
-          `SELECT DISTINCT
-             a.title_ko AS text_ko,
-             a.title_en AS text_en,
-             'ARTWORK_TITLE' AS type
-           FROM artworks a
-           WHERE a.deleted_at IS NULL
-             AND ${searchColumn} LIKE ?
+          `SELECT
+             suggestions.text_ko,
+             suggestions.text_en,
+             suggestions.type
+           FROM (
+             SELECT DISTINCT
+               a.title_ko AS text_ko,
+               a.title_en AS text_en,
+               'ARTWORK_TITLE' AS type,
+               CASE
+                 WHEN ${artworkSearchColumn} LIKE ? THEN 0
+                 ELSE 1
+               END AS match_order,
+               0 AS source_order,
+               CHAR_LENGTH(${artworkSearchColumn}) AS text_length,
+               ${artworkSearchColumn} AS sort_text
+             FROM artworks a
+             WHERE a.deleted_at IS NULL
+               AND ${artworkSearchColumn} LIKE ?
+
+             UNION ALL
+
+             SELECT DISTINCT
+               ar.name_ko AS text_ko,
+               ar.name_en AS text_en,
+               'ARTIST_NAME' AS type,
+               CASE
+                 WHEN ${artistSearchColumn} LIKE ? THEN 0
+                 ELSE 1
+               END AS match_order,
+               1 AS source_order,
+               CHAR_LENGTH(${artistSearchColumn}) AS text_length,
+               ${artistSearchColumn} AS sort_text
+             FROM artists ar
+             WHERE ar.deleted_at IS NULL
+               AND ${artistSearchColumn} LIKE ?
+
+             UNION ALL
+
+             SELECT DISTINCT
+               p.name_ko AS text_ko,
+               p.name_en AS text_en,
+               'PLACE_NAME' AS type,
+               CASE
+                 WHEN ${placeSearchColumn} LIKE ? THEN 0
+                 ELSE 1
+               END AS match_order,
+               2 AS source_order,
+               CHAR_LENGTH(${placeSearchColumn}) AS text_length,
+               ${placeSearchColumn} AS sort_text
+             FROM places p
+             WHERE p.deleted_at IS NULL
+               AND ${placeSearchColumn} LIKE ?
+           ) suggestions
            ORDER BY
-             CASE
-               WHEN ${searchColumn} LIKE ? THEN 0
-               ELSE 1
-             END ASC,
-             CHAR_LENGTH(${searchColumn}) ASC,
-             ${searchColumn} ASC
+             suggestions.match_order ASC,
+             suggestions.source_order ASC,
+             suggestions.text_length ASC,
+             suggestions.sort_text ASC
            LIMIT ?`,
           params,
         );

@@ -5,6 +5,8 @@ import type {
 
 export const SEARCH_AUTOCOMPLETE_TYPE_VALUES = [
   'ARTWORK_TITLE',
+  'ARTIST_NAME',
+  'PLACE_NAME',
 ] as const;
 
 export type SearchAutocompleteType = (typeof SEARCH_AUTOCOMPLETE_TYPE_VALUES)[number];
