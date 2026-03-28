@@ -128,7 +128,12 @@ async function seedContentScenario(): Promise<SeededContentIds> {
   const [individualArtistResult] = await pool.execute<ResultSetHeader>(
     `INSERT INTO artists (name_ko, name_en, type, profile_image_url, deleted_at, created_at, updated_at)
      VALUES (?, ?, ?, NULL, NULL, ?, ?)`,
-    ['김철수', 'Kim Cheolsu', 'INDIVIDUAL', now, now],
+    ['영일 작가', 'Yeongil Artist', 'INDIVIDUAL', now, now],
+  );
+  await pool.execute(
+    `INSERT INTO artists (name_ko, name_en, type, profile_image_url, deleted_at, created_at, updated_at)
+     VALUES (?, ?, ?, NULL, ?, ?, ?)`,
+    ['영일 삭제 작가', 'Yeongil Deleted Artist', 'INDIVIDUAL', now, now, now],
   );
 
   const [yeongildaePlaceResult] = await pool.execute<ResultSetHeader>(
@@ -140,6 +145,11 @@ async function seedContentScenario(): Promise<SeededContentIds> {
     `INSERT INTO places (name_ko, name_en, address, lat, lng, zone_id, deleted_at, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
     ['스페이스워크', 'Space Walk', '경북 포항시 환호공원', 36.067, 129.395, hwanhoZoneResult.insertId, now, now],
+  );
+  await pool.execute(
+    `INSERT INTO places (name_ko, name_en, address, lat, lng, zone_id, deleted_at, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ['영일 삭제 장소', 'Yeongil Deleted Place', '경북 포항시 삭제 장소', 36.059, 129.379, yeongilZoneResult.insertId, now, now, now],
   );
 
   const [spaceWalkArtworkResult] = await pool.execute<ResultSetHeader>(
@@ -251,6 +261,44 @@ async function seedContentScenario(): Promise<SeededContentIds> {
       0,
       now,
       new Date('2026-03-19T03:00:00.000Z'),
+    ],
+  );
+  await pool.execute(
+    `INSERT INTO artworks (
+        title_ko,
+        title_en,
+        artist_id,
+        place_id,
+        category,
+        production_year,
+        size_text_ko,
+        size_text_en,
+        description_ko,
+        description_en,
+        audio_url_ko,
+        audio_url_en,
+        likes_count,
+        deleted_at,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      '영일 삭제 작품',
+      'Deleted Yeongil Artwork',
+      companyArtistResult.insertId,
+      yeongildaePlaceResult.insertId,
+      'PUBLIC_ART',
+      2019,
+      null,
+      null,
+      '삭제된 작품',
+      'Deleted artwork',
+      null,
+      null,
+      0,
+      now,
+      now,
+      now,
     ],
   );
 
@@ -472,8 +520,8 @@ test('search endpoint returns paginated artwork matches by place name', { skip: 
   assert.equal(body.data.artworks[0].thumbnail_image_height, 800);
 });
 
-// 자동완성 API는 작품명 후보만 반환해야 한다.
-test('search autocomplete endpoint returns typed suggestions', { skip: integrationSkipReason }, async () => {
+// 자동완성 API는 작품명, 작가명, 위치명 후보를 함께 반환하고 soft delete된 후보는 제외해야 한다.
+test('search autocomplete endpoint returns artwork, artist, and place suggestions', { skip: integrationSkipReason }, async () => {
   const seeded = await seedContentScenario();
   const token = signAccessToken(seeded.userId);
 
@@ -485,6 +533,47 @@ test('search autocomplete endpoint returns typed suggestions', { skip: integrati
 
   assert.equal(response.statusCode, 200);
   assert.deepEqual(body.data.suggestions, [
+    {
+      text_en: 'Wind of Yeongil',
+      text_ko: '영일의 바람',
+      type: 'ARTWORK_TITLE',
+    },
+    {
+      text_en: 'Yeongil Artist',
+      text_ko: '영일 작가',
+      type: 'ARTIST_NAME',
+    },
+    {
+      text_en: 'Yeongildae',
+      text_ko: '영일대',
+      type: 'PLACE_NAME',
+    },
+  ]);
+});
+
+// 자동완성 API는 lang=en일 때 영문 컬럼 기준으로 후보를 정렬해야 한다.
+test('search autocomplete endpoint uses english columns when lang is en', { skip: integrationSkipReason }, async () => {
+  const seeded = await seedContentScenario();
+  const token = signAccessToken(seeded.userId);
+
+  const response = await handleSearchRequest(
+    createEvent('/v1/search/autocomplete', 'q=Yeongil&lang=en&size=5', token),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+  const body = JSON.parse(response.body as string);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(body.data.suggestions, [
+    {
+      text_en: 'Yeongil Artist',
+      text_ko: '영일 작가',
+      type: 'ARTIST_NAME',
+    },
+    {
+      text_en: 'Yeongildae',
+      text_ko: '영일대',
+      type: 'PLACE_NAME',
+    },
     {
       text_en: 'Wind of Yeongil',
       text_ko: '영일의 바람',
@@ -575,9 +664,8 @@ test('artwork filters endpoint returns zones with places and festival years', { 
   assert.equal(response.statusCode, 200);
   assert.equal(body.data.zones.length, 2);
   assert.equal(body.data.zones[0].id, seeded.zoneIds.yeongil);
-  assert.deepEqual(body.data.zones[0].places.map((place: { id: number }) => place.id), [
-    seeded.placeIds.yeongildae,
-  ]);
+  assert.equal(body.data.zones[0].places.length, 2);
+  assert.ok(body.data.zones[0].places.some((place: { id: number }) => place.id === seeded.placeIds.yeongildae));
   assert.deepEqual(body.data.festivalYears, ['2025', '2024', '2023', '2022']);
   assert.equal(body.data.artistTypes.length, 2);
 });
