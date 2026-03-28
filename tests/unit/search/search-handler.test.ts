@@ -56,6 +56,16 @@ function createSearchServiceStub(): SearchService {
             text_ko: input.q,
             type: 'ARTWORK_TITLE',
           },
+          {
+            text_en: 'PosArt',
+            text_ko: '포스아트',
+            type: 'ARTIST_NAME',
+          },
+          {
+            text_en: 'Yeongildae',
+            text_ko: '영일대',
+            type: 'PLACE_NAME',
+          },
         ],
       };
     },
@@ -180,9 +190,11 @@ test('search handler returns autocomplete suggestions for GET /v1/search/autocom
   const body = JSON.parse(response.body as string);
 
   assert.equal(response.statusCode, 200);
-  assert.equal(body.data.suggestions.length, 1);
+  assert.equal(body.data.suggestions.length, 3);
   assert.equal(body.data.suggestions[0].text_ko, '스페이스');
   assert.equal(body.data.suggestions[0].type, 'ARTWORK_TITLE');
+  assert.equal(body.data.suggestions[1].type, 'ARTIST_NAME');
+  assert.equal(body.data.suggestions[2].type, 'PLACE_NAME');
 });
 
 // 검색 정렬값이 없으면 latest 기본값으로 처리해야 한다.

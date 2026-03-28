@@ -61,6 +61,21 @@ test('search autocomplete schema trims q and applies size default', () => {
   });
 });
 
+// 자동완성 스키마는 허용된 lang 값을 그대로 통과시켜야 한다.
+test('search autocomplete schema accepts supported lang values', () => {
+  assert.deepEqual(parseInput({
+    schema: searchAutocompleteQuerySchema,
+    input: {
+      lang: 'en',
+      q: 'Space',
+    },
+  }), {
+    lang: 'en',
+    q: 'Space',
+    size: 10,
+  });
+});
+
 // 자동완성 스키마는 빈 query, 허용되지 않은 lang, 너무 큰 size를 거부해야 한다.
 test('search autocomplete schema rejects blank query and oversize limit', () => {
   assert.throws(
