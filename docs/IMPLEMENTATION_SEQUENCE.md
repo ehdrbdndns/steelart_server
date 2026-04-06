@@ -19,8 +19,9 @@
 3. `codex/03-sam-http-api-cicd` 완료
 4. `codex/04-auth-users` 완료
 5. `codex/05-read-content`
-6. `codex/06-courses-engagement`
-7. `codex/07-checkin-hardening`
+6. `codex/06-artwork-likes`
+7. `codex/07-courses`
+8. `codex/08-checkin-hardening`
 
 ## 1단계. 프로젝트 부트스트랩
 
@@ -181,7 +182,7 @@
 ## 5단계. 읽기 중심 콘텐츠 API
 
 ### 상태
-- 진행 중
+- 완료
 
 ### 브랜치명
 - `codex/05-read-content`
@@ -216,20 +217,46 @@
 ### 다음 단계로 넘어가는 조건
 - 앱의 홈, 작품, 지도 탐색 흐름이 서버 응답 기준으로 재현 가능하다.
 
-## 6단계. 코스 및 참여 기능
+## 6단계. 작품 좋아요
+
+### 상태
+- 완료
+
+### 브랜치명
+- `codex/06-artwork-likes`
+
+### 목표
+- 작품 좋아요 흐름을 독립 단계로 구현한다.
+
+### 수행 작업
+- `POST /v1/artworks/{artworkId}/like`
+- `DELETE /v1/artworks/{artworkId}/like`
+
+### 산출물
+- 작품 좋아요 API
+- 작품 카드/상세의 좋아요 상태 일관성
+
+### 검증 기준
+- 좋아요 생성이 정상 동작한다.
+- 좋아요 취소가 정상 동작한다.
+- 같은 작품에 대한 중복 좋아요가 방지된다.
+- 작품 목록, 검색, 홈, 지도, 상세에서 `liked` 값이 일관되게 반영된다.
+
+### 다음 단계로 넘어가는 조건
+- 작품 좋아요 흐름이 앱 전체 읽기 API와 함께 안정적으로 동작한다.
+
+## 7단계. 코스 기능
 
 ### 상태
 - 미완료
 
 ### 브랜치명
-- `codex/06-courses-engagement`
+- `codex/07-courses`
 
 ### 목표
-- 코스 탐색과 사용자 참여 기능을 구현한다.
+- 코스 조회/생성/수정과 코스 좋아요를 구현한다.
 
 ### 수행 작업
-- `POST /v1/artworks/{artworkId}/like`
-- `DELETE /v1/artworks/{artworkId}/like`
 - `GET /v1/courses/recommended`
 - `GET /v1/courses/mine`
 - `GET /v1/courses/{courseId}`
@@ -242,7 +269,7 @@
 
 ### 산출물
 - `courses` 도메인 조회/쓰기 API
-- 작품/코스 좋아요 API
+- 코스 좋아요 API
 
 ### 검증 기준
 - 공식 코스와 내 코스가 분리 조회된다.
@@ -251,15 +278,15 @@
 - 코스 상세가 지도/리스트 구성에 필요한 데이터를 반환한다.
 
 ### 다음 단계로 넘어가는 조건
-- 앱의 코스 탭과 좋아요 흐름이 서버 응답 기준으로 동작 가능하다.
+- 앱의 코스 탭과 코스 좋아요 흐름이 서버 응답 기준으로 동작 가능하다.
 
-## 7단계. 체크인 및 안정화
+## 8단계. 체크인 및 안정화
 
 ### 상태
 - 미완료
 
 ### 브랜치명
-- `codex/07-checkin-hardening`
+- `codex/08-checkin-hardening`
 
 ### 목표
 - 공식 코스 체크인을 완성하고, 배포 가능한 안정화 수준까지 끌어올린다.
@@ -301,4 +328,4 @@
 - 문서 경로/구조가 바뀌면 관련 문서도 함께 수정
 
 ## 한 줄 결론
-- 구현은 `MASTER_PLAN.md`의 큰 방향을 유지하되, 실제 작업은 `codex/01-bootstrap-project`부터 `codex/07-checkin-hardening`까지 브랜치별로 순차 진행하고, 각 브랜치의 검증 기준을 만족한 뒤 다음 단계로 넘어가는 방식이 가장 안전하다.
+- 구현은 `MASTER_PLAN.md`의 큰 방향을 유지하되, 실제 작업은 `codex/01-bootstrap-project`부터 `codex/08-checkin-hardening`까지 브랜치별로 순차 진행하고, 각 브랜치의 검증 기준을 만족한 뒤 다음 단계로 넘어가는 방식이 가장 안전하다.
