@@ -16,6 +16,7 @@ export interface HttpRequest {
   path: string;
   pathParams: Record<string, string | undefined>;
   query: URLSearchParams;
+  routePath: string;
   requestId?: string;
   segments: string[];
 }
@@ -50,16 +51,6 @@ export function getMethod(event: APIGatewayProxyEventV2): string {
 }
 
 export function getPath(event: APIGatewayProxyEventV2): string {
-  const routeKey = event.requestContext.routeKey;
-
-  if (routeKey && routeKey !== '$default') {
-    const [, routePath] = routeKey.split(' ', 2);
-
-    if (routePath) {
-      return routePath;
-    }
-  }
-
   const rawPath = event.rawPath;
   const stage = event.requestContext.stage;
 
@@ -78,6 +69,20 @@ export function getPath(event: APIGatewayProxyEventV2): string {
   }
 
   return rawPath;
+}
+
+export function getRoutePath(event: APIGatewayProxyEventV2): string {
+  const routeKey = event.requestContext.routeKey;
+
+  if (routeKey && routeKey !== '$default') {
+    const [, routePath] = routeKey.split(' ', 2);
+
+    if (routePath) {
+      return routePath;
+    }
+  }
+
+  return getPath(event);
 }
 
 export function getPathParams(
@@ -171,6 +176,7 @@ export function createHttpRequest(event: APIGatewayProxyEventV2, context?: Conte
   const path = getPath(event);
   const pathParams = getPathParams(event);
   const query = getQueryParams(event);
+  const routePath = getRoutePath(event);
 
   return {
     getHeader(name) {
@@ -190,6 +196,7 @@ export function createHttpRequest(event: APIGatewayProxyEventV2, context?: Conte
     path,
     pathParams,
     query,
+    routePath,
     requestId: getRequestId(event, context),
     segments: getPathSegments(path),
   };

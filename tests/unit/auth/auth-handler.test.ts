@@ -126,3 +126,34 @@ test('auth handler returns session response for GET /v1/auth/me', async () => {
     },
   });
 });
+
+// proxy routeKey로 들어와도 auth handler는 실제 세부 경로를 인식해야 한다.
+test('auth handler resolves proxied auth route path from rawPath', async () => {
+  applyServerTestEnv();
+  const token = signAccessToken(12, {
+    secret: 'test-secret',
+  });
+
+  const response = await handleAuthRequest(
+    createEvent({
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      requestContext: {
+        ...createEvent().requestContext,
+        http: {
+          ...createEvent().requestContext.http,
+          method: 'GET',
+          path: '/v1/auth/me',
+        },
+        routeKey: 'ANY /v1/auth/{proxy+}',
+      },
+      routeKey: 'ANY /v1/auth/{proxy+}',
+    }),
+    {} as never,
+    createAuthServiceStub(),
+  ) as APIGatewayProxyStructuredResultV2;
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(JSON.parse(response.body as string).data.user.id, 12);
+});

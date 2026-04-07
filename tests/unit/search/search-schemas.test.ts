@@ -47,6 +47,22 @@ test('search schema rejects blank query and invalid sort', () => {
   );
 });
 
+// 검색 스키마는 작품명 순 정렬값을 허용해야 한다.
+test('search schema accepts title sort', () => {
+  assert.deepEqual(parseInput({
+    schema: searchArtworksQuerySchema,
+    input: {
+      q: '포항',
+      sort: 'title',
+    },
+  }), {
+    page: 1,
+    q: '포항',
+    size: 20,
+    sort: 'title',
+  });
+});
+
 // 자동완성 스키마는 q를 trim하고 lang, size 기본값을 채워야 한다.
 test('search autocomplete schema trims q and applies size default', () => {
   assert.deepEqual(parseInput({

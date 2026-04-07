@@ -83,6 +83,7 @@ test('route helper reads path segments and repeated query values', () => {
   const request = createHttpRequest(event);
 
   assert.deepEqual(getPathSegments(request.path), ['v1', 'artworks', 'filters']);
+  assert.equal(request.routePath, '/v1/artworks/filters');
   assert.deepEqual(getQueryList(event, 'placeId'), ['1', '2']);
   assert.deepEqual(request.getQueryList('artistType'), ['COMPANY', 'INDIVIDUAL']);
 });
@@ -104,7 +105,56 @@ test('route helper strips stage prefix from raw path', () => {
   const request = createHttpRequest(event);
 
   assert.equal(request.path, '/v1/auth/me');
+  assert.equal(request.routePath, '/v1/auth/me');
   assert.deepEqual(getPathSegments(request.path), ['v1', 'auth', 'me']);
+});
+
+// proxy 라우트는 실제 path와 route template을 분리해서 제공해야 한다.
+test('route helper separates raw path and proxy route template', () => {
+  const event = createEvent({
+    rawPath: '/v1/auth/me',
+    requestContext: {
+      ...createEvent().requestContext,
+      http: {
+        ...createEvent().requestContext.http,
+        path: '/v1/auth/me',
+      },
+      routeKey: 'ANY /v1/auth/{proxy+}',
+    },
+    routeKey: 'ANY /v1/auth/{proxy+}',
+  });
+
+  const request = createHttpRequest(event);
+
+  assert.equal(request.path, '/v1/auth/me');
+  assert.equal(request.routePath, '/v1/auth/{proxy+}');
+  assert.deepEqual(getPathSegments(request.path), ['v1', 'auth', 'me']);
+});
+
+// 명시 라우트는 실제 path와 route template을 둘 다 제공해야 한다.
+test('route helper separates raw path and explicit route template', () => {
+  const event = createEvent({
+    pathParameters: {
+      artworkId: '12',
+    },
+    rawPath: '/v1/artworks/12/like',
+    requestContext: {
+      ...createEvent().requestContext,
+      http: {
+        ...createEvent().requestContext.http,
+        method: 'POST',
+        path: '/v1/artworks/12/like',
+      },
+      routeKey: 'POST /v1/artworks/{artworkId}/like',
+    },
+    routeKey: 'POST /v1/artworks/{artworkId}/like',
+  });
+
+  const request = createHttpRequest(event);
+
+  assert.equal(request.path, '/v1/artworks/12/like');
+  assert.equal(request.routePath, '/v1/artworks/{artworkId}/like');
+  assert.equal(request.pathParams.artworkId, '12');
 });
 
 // JSON body가 잘못되면 AppError로 변환되어야 한다.

@@ -1,7 +1,4 @@
-import type {
-  ArtworkCard,
-  ArtworkSort,
-} from '../artworks/types.js';
+import type { ArtworkCard } from '../artworks/types.js';
 
 export const SEARCH_AUTOCOMPLETE_TYPE_VALUES = [
   'ARTWORK_TITLE',
@@ -18,11 +15,19 @@ export const SEARCH_AUTOCOMPLETE_LANGUAGE_VALUES = [
 
 export type SearchAutocompleteLanguage = (typeof SEARCH_AUTOCOMPLETE_LANGUAGE_VALUES)[number];
 
+export const SEARCH_ARTWORK_SORT_VALUES = [
+  'latest',
+  'oldest',
+  'title',
+] as const;
+
+export type SearchArtworkSort = (typeof SEARCH_ARTWORK_SORT_VALUES)[number];
+
 export interface SearchArtworksInput {
   page: number;
   q: string;
   size: number;
-  sort: ArtworkSort;
+  sort: SearchArtworkSort;
 }
 
 export interface SearchArtworkCard extends ArtworkCard {
