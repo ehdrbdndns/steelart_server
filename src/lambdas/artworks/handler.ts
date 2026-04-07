@@ -81,12 +81,31 @@ export async function handleArtworksRequest(
       });
     }
 
-    if (request.segments.length === 3 && request.segments[0] === 'v1' && request.segments[1] === 'artworks') {
+    if (request.path === '/v1/artworks/{artworkId}/like') {
+      assertMethod(request.method, ['POST', 'DELETE']);
+      const input = parseInput({
+        schema: artworkIdParamSchema,
+        input: {
+          artworkId: request.pathParams.artworkId,
+        },
+        message: 'Artwork id is invalid',
+      });
+
+      const result = request.method === 'POST'
+        ? await service.likeArtwork(input.artworkId, auth.userId)
+        : await service.unlikeArtwork(input.artworkId, auth.userId);
+
+      return ok(result, {
+        requestId: request.requestId ?? null,
+      });
+    }
+
+    if (request.path === '/v1/artworks/{artworkId}') {
       assertMethod(request.method, ['GET']);
       const input = parseInput({
         schema: artworkIdParamSchema,
         input: {
-          artworkId: request.segments[2],
+          artworkId: request.pathParams.artworkId,
         },
         message: 'Artwork id is invalid',
       });

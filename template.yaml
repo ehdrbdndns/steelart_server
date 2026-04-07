@@ -238,12 +238,26 @@ Resources:
             Method: ANY
             Path: /v1/artworks
             PayloadFormatVersion: '2.0'
-        ArtworksProxyRoute:
+        ArtworksFiltersRoute:
           Type: HttpApi
           Properties:
             ApiId: !Ref SteelArtHttpApi
             Method: ANY
-            Path: /v1/artworks/{proxy+}
+            Path: /v1/artworks/filters
+            PayloadFormatVersion: '2.0'
+        ArtworksDetailRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v1/artworks/{artworkId}
+            PayloadFormatVersion: '2.0'
+        ArtworksLikeRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v1/artworks/{artworkId}/like
             PayloadFormatVersion: '2.0'
     Metadata:
       BuildMethod: esbuild

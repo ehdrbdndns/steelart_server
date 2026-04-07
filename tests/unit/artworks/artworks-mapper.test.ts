@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { mapArtworkFiltersResponse } from '../../../src/domains/artworks/mapper.js';
+import {
+  mapArtworkFiltersResponse,
+  mapArtworkLikeResponse,
+} from '../../../src/domains/artworks/mapper.js';
 
 // 작품 필터 매퍼는 장소와 축제 연도 목록에 아티스트 타입 옵션을 함께 붙여야 한다.
 test('artworks mapper builds bilingual filter response', () => {
@@ -46,5 +49,13 @@ test('artworks mapper builds bilingual filter response', () => {
         ],
       },
     ],
+  });
+});
+
+// 작품 좋아요 매퍼는 artworkId와 최종 liked 상태만 그대로 반환해야 한다.
+test('artworks mapper builds minimal like response', () => {
+  assert.deepEqual(mapArtworkLikeResponse(12, true), {
+    artworkId: 12,
+    liked: true,
   });
 });

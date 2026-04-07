@@ -4,8 +4,9 @@ import test, { after, before, beforeEach } from 'node:test';
 import type {
   APIGatewayProxyEventV2,
   APIGatewayProxyStructuredResultV2,
+  Context,
 } from 'aws-lambda';
-import type { ResultSetHeader } from 'mysql2/promise';
+import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
 import { handleArtworksRequest } from '../../../src/lambdas/artworks/handler.js';
 import { handleHomeRequest } from '../../../src/lambdas/home/handler.js';
@@ -17,6 +18,7 @@ import {
   closeIntegrationDatabase,
   getIntegrationSkipReason,
   prepareIntegrationDatabase,
+  queryRows,
   resetIntegrationDatabase,
 } from '../helpers/database.js';
 
@@ -43,7 +45,35 @@ interface SeededContentIds {
   };
 }
 
-function createEvent(path: string, query = '', token?: string): APIGatewayProxyEventV2 {
+interface LikeCountRow extends RowDataPacket {
+  total: number;
+}
+
+function createEvent(
+  path: string,
+  query = '',
+  token?: string,
+  method = 'GET',
+): APIGatewayProxyEventV2 {
+  const likeMatch = path.match(/^\/v1\/artworks\/([^/]+)\/like$/);
+  const detailMatch = likeMatch
+    ? null
+    : path.match(/^\/v1\/artworks\/([^/]+)$/);
+  const pathParameters = likeMatch
+    ? {
+      artworkId: likeMatch[1],
+    }
+    : detailMatch && detailMatch[1] !== 'filters'
+      ? {
+        artworkId: detailMatch[1],
+      }
+      : {};
+  const routePath = likeMatch
+    ? '/v1/artworks/{artworkId}/like'
+    : detailMatch && detailMatch[1] !== 'filters'
+      ? '/v1/artworks/{artworkId}'
+      : path;
+
   return {
     body: undefined,
     cookies: [],
@@ -53,7 +83,7 @@ function createEvent(path: string, query = '', token?: string): APIGatewayProxyE
       }
       : {},
     isBase64Encoded: false,
-    pathParameters: undefined,
+    pathParameters,
     queryStringParameters: undefined,
     rawPath: path,
     rawQueryString: query,
@@ -63,21 +93,102 @@ function createEvent(path: string, query = '', token?: string): APIGatewayProxyE
       domainName: 'example.com',
       domainPrefix: 'example',
       http: {
-        method: 'GET',
+        method,
         path,
         protocol: 'HTTP/1.1',
         sourceIp: '127.0.0.1',
         userAgent: 'integration-test',
       },
       requestId: 'integration-request-id',
-      routeKey: '$default',
+      routeKey: `${method} ${routePath}`,
       stage: '$default',
       time: '19/Mar/2026:00:00:00 +0000',
       timeEpoch: 1,
     },
-    routeKey: '$default',
+    routeKey: `${method} ${routePath}`,
     stageVariables: undefined,
     version: '2.0',
+  };
+}
+
+function findArtworkById<TItem extends { id: number; liked: boolean }>(
+  items: TItem[],
+  artworkId: number,
+): TItem {
+  const item = items.find((candidate) => candidate.id === artworkId);
+
+  assert.ok(item, `artwork ${artworkId} should exist in response`);
+  return item;
+}
+
+async function countArtworkLikes(userId: number, artworkId: number): Promise<number> {
+  const rows = await queryRows<LikeCountRow>(
+    `SELECT COUNT(*) AS total
+     FROM artwork_likes
+     WHERE user_id = ?
+       AND artwork_id = ?`,
+    [userId, artworkId],
+  );
+
+  return rows[0]?.total ?? 0;
+}
+
+async function collectLikedStateSnapshots(
+  seeded: SeededContentIds,
+  artworkId: number,
+  token: string,
+): Promise<{
+  detail: boolean;
+  home: boolean;
+  list: boolean;
+  map: boolean;
+  search: boolean;
+}> {
+  const lambdaContext = {} as Context;
+  const detailResponse = await handleArtworksRequest(
+    createEvent(`/v1/artworks/${artworkId}`, '', token),
+    lambdaContext,
+  ) as APIGatewayProxyStructuredResultV2;
+  const listQuery = new URLSearchParams();
+  listQuery.append('placeId', String(seeded.placeIds.yeongildae));
+  listQuery.append('artistType', 'INDIVIDUAL');
+  listQuery.append('festivalYear', '2022');
+  listQuery.set('sort', 'latest');
+  const listResponse = await handleArtworksRequest(
+    createEvent('/v1/artworks', listQuery.toString(), token),
+    lambdaContext,
+  ) as APIGatewayProxyStructuredResultV2;
+  const homeResponse = await handleHomeRequest(
+    createEvent('/v1/home', '', token),
+    lambdaContext,
+  ) as APIGatewayProxyStructuredResultV2;
+  const searchResponse = await handleSearchRequest(
+    createEvent('/v1/search/artworks', 'q=영일의 바람&sort=latest&page=1&size=20', token),
+    lambdaContext,
+  ) as APIGatewayProxyStructuredResultV2;
+  const mapResponse = await handleMapRequest(
+    createEvent('/v1/map/artworks', 'lat=36.058&lng=129.378&radiusMeters=500', token),
+    lambdaContext,
+  ) as APIGatewayProxyStructuredResultV2;
+
+  return {
+    detail: JSON.parse(detailResponse.body as string).data.liked,
+    home: findArtworkById(
+      JSON.parse(homeResponse.body as string).data.artworks,
+      artworkId,
+    ).liked,
+    list: findArtworkById(
+      JSON.parse(listResponse.body as string).data.artworks,
+      artworkId,
+    ).liked,
+    map: findArtworkById(
+      JSON.parse(mapResponse.body as string).data.artworks,
+      artworkId,
+    ).liked,
+    search: findArtworkById(
+      JSON.parse(searchResponse.body as string).data.artworks,
+      artworkId,
+    ).liked,
   };
 }
 
@@ -688,4 +799,90 @@ test('map endpoint returns artworks ordered by distance within radius', { skip: 
   assert.equal(typeof body.data.artworks[0].lat, 'number');
   assert.equal(typeof body.data.artworks[0].lng, 'number');
   assert.equal(body.data.artworks[0].liked, true);
+});
+
+// 작품 좋아요 API는 row를 생성하고 기존 읽기 API들에 liked=true를 반영해야 한다.
+test('artwork like endpoint creates a like row and updates liked flags across read APIs', { skip: integrationSkipReason }, async () => {
+  const seeded = await seedContentScenario();
+  const token = signAccessToken(seeded.userId);
+
+  const response = await handleArtworksRequest(
+    createEvent(`/v1/artworks/${seeded.artworkIds.yeongilWind}/like`, '', token, 'POST'),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+  const body = JSON.parse(response.body as string);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(body.data, {
+    artworkId: seeded.artworkIds.yeongilWind,
+    liked: true,
+  });
+  assert.equal(await countArtworkLikes(seeded.userId, seeded.artworkIds.yeongilWind), 1);
+
+  const snapshots = await collectLikedStateSnapshots(seeded, seeded.artworkIds.yeongilWind, token);
+
+  assert.deepEqual(snapshots, {
+    detail: true,
+    home: true,
+    list: true,
+    map: true,
+    search: true,
+  });
+});
+
+// 작품 좋아요 API는 중복 POST/DELETE에도 최종 상태만 유지하는 멱등 동작이어야 한다.
+test('artwork like endpoints stay idempotent across repeated requests', { skip: integrationSkipReason }, async () => {
+  const seeded = await seedContentScenario();
+  const token = signAccessToken(seeded.userId);
+
+  const firstLikeResponse = await handleArtworksRequest(
+    createEvent(`/v1/artworks/${seeded.artworkIds.yeongilWind}/like`, '', token, 'POST'),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+  const secondLikeResponse = await handleArtworksRequest(
+    createEvent(`/v1/artworks/${seeded.artworkIds.yeongilWind}/like`, '', token, 'POST'),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+
+  assert.equal(firstLikeResponse.statusCode, 200);
+  assert.equal(secondLikeResponse.statusCode, 200);
+  assert.equal(await countArtworkLikes(seeded.userId, seeded.artworkIds.yeongilWind), 1);
+
+  const firstUnlikeResponse = await handleArtworksRequest(
+    createEvent(`/v1/artworks/${seeded.artworkIds.yeongilWind}/like`, '', token, 'DELETE'),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+  const secondUnlikeResponse = await handleArtworksRequest(
+    createEvent(`/v1/artworks/${seeded.artworkIds.yeongilWind}/like`, '', token, 'DELETE'),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+
+  assert.equal(firstUnlikeResponse.statusCode, 200);
+  assert.equal(secondUnlikeResponse.statusCode, 200);
+  assert.equal(await countArtworkLikes(seeded.userId, seeded.artworkIds.yeongilWind), 0);
+
+  const snapshots = await collectLikedStateSnapshots(seeded, seeded.artworkIds.yeongilWind, token);
+
+  assert.deepEqual(snapshots, {
+    detail: false,
+    home: false,
+    list: false,
+    map: false,
+    search: false,
+  });
+});
+
+// 없는 작품에 대한 작품 좋아요 API는 NOT_FOUND를 반환해야 한다.
+test('artwork like endpoint returns NOT_FOUND for missing artworks', { skip: integrationSkipReason }, async () => {
+  const seeded = await seedContentScenario();
+  const token = signAccessToken(seeded.userId);
+
+  const response = await handleArtworksRequest(
+    createEvent('/v1/artworks/999999/like', '', token, 'POST'),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+  const body = JSON.parse(response.body as string);
+
+  assert.equal(response.statusCode, 404);
+  assert.equal(body.error.code, 'NOT_FOUND');
 });

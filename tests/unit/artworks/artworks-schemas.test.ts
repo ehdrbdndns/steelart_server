@@ -3,7 +3,10 @@ import test from 'node:test';
 
 import { AppError } from '../../../src/shared/api/errors.js';
 import { parseInput } from '../../../src/shared/validation/parse.js';
-import { artworksListQuerySchema } from '../../../src/domains/artworks/schemas.js';
+import {
+  artworkIdParamSchema,
+  artworksListQuerySchema,
+} from '../../../src/domains/artworks/schemas.js';
 
 // 작품 목록 스키마는 반복 query를 배열로 받아 기본 pagination과 정렬을 채워야 한다.
 test('artworks schema parses multi filters and defaults', () => {
@@ -32,6 +35,31 @@ test('artworks schema rejects invalid artistType values', () => {
       schema: artworksListQuerySchema,
       input: {
         artistType: ['WRONG'],
+      },
+    }),
+    (error: unknown) => error instanceof AppError && error.code === 'VALIDATION_ERROR',
+  );
+});
+
+// 작품 path param 스키마는 양수 정수 artworkId를 허용해야 한다.
+test('artwork id param schema parses a positive integer', () => {
+  assert.deepEqual(parseInput({
+    schema: artworkIdParamSchema,
+    input: {
+      artworkId: '12',
+    },
+  }), {
+    artworkId: 12,
+  });
+});
+
+// 작품 path param 스키마는 0 이하 값을 거부해야 한다.
+test('artwork id param schema rejects non-positive integers', () => {
+  assert.throws(
+    () => parseInput({
+      schema: artworkIdParamSchema,
+      input: {
+        artworkId: '0',
       },
     }),
     (error: unknown) => error instanceof AppError && error.code === 'VALIDATION_ERROR',

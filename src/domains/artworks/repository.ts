@@ -1,4 +1,5 @@
 import type {
+  ResultSetHeader,
   RowDataPacket,
 } from 'mysql2/promise';
 
@@ -87,6 +88,10 @@ interface FestivalYearRow extends RowDataPacket {
 
 interface CountRow extends RowDataPacket {
   total: number;
+}
+
+interface ExistsRow extends RowDataPacket {
+  id: number;
 }
 
 interface PlaceFilterRow extends RowDataPacket {
@@ -197,13 +202,38 @@ function buildArtworkSortClause(sort: ArtworkSort): string {
 }
 
 export interface ArtworksRepository {
+  createArtworkLike(userId: number, artworkId: number): Promise<void>;
+  deleteArtworkLike(userId: number, artworkId: number): Promise<void>;
   findArtworkDetail(artworkId: number, userId: number): Promise<ArtworkDetail | null>;
+  findArtworkExists(artworkId: number): Promise<boolean>;
   listArtworkFilters(): Promise<{ festivalYears: string[]; zones: ZonePlaceFilterOption[] }>;
   listArtworks(input: ArtworkListInput, userId: number): Promise<{ artworks: ArtworkArchiveItem[]; total: number }>;
   listHomeArtworkCards(zoneId: number, userId: number): Promise<ArtworkCard[]>;
 }
 
 export const artworksRepository: ArtworksRepository = {
+  async createArtworkLike(userId, artworkId) {
+    await withConnection(async (connection) => {
+      await connection.execute<ResultSetHeader>(
+        `INSERT INTO artwork_likes (user_id, artwork_id)
+         VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE created_at = created_at`,
+        [userId, artworkId],
+      );
+    });
+  },
+
+  async deleteArtworkLike(userId, artworkId) {
+    await withConnection(async (connection) => {
+      await connection.execute<ResultSetHeader>(
+        `DELETE FROM artwork_likes
+         WHERE user_id = ?
+           AND artwork_id = ?`,
+        [userId, artworkId],
+      );
+    });
+  },
+
   async findArtworkDetail(artworkId, userId) {
     return withConnection(async (connection) => {
       const detailParams: SqlParam[] = [userId, artworkId];
@@ -269,6 +299,21 @@ export const artworksRepository: ArtworksRepository = {
       const festivalYears = festivalRows.map((row) => row.year);
 
       return mapArtworkDetailRow(detailRow, images, festivalYears);
+    });
+  },
+
+  async findArtworkExists(artworkId) {
+    return withConnection(async (connection) => {
+      const [rows] = await connection.execute<ExistsRow[]>(
+        `SELECT id
+         FROM artworks
+         WHERE id = ?
+           AND deleted_at IS NULL
+         LIMIT 1`,
+        [artworkId],
+      );
+
+      return rows.length > 0;
     });
   },
 

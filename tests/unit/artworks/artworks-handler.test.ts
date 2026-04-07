@@ -11,42 +11,50 @@ import { handleArtworksRequest } from '../../../src/lambdas/artworks/handler.js'
 import { signAccessToken } from '../../../src/shared/auth/token.js';
 import { resetEnvForTests } from '../../../src/shared/env/server.js';
 
+function createRequestContext(
+  path = '/v1/artworks',
+  method = 'GET',
+  routePath = path,
+): APIGatewayProxyEventV2['requestContext'] {
+  return {
+    accountId: 'account-id',
+    apiId: 'api-id',
+    domainName: 'example.com',
+    domainPrefix: 'example',
+    http: {
+      method,
+      path,
+      protocol: 'HTTP/1.1',
+      sourceIp: '127.0.0.1',
+      userAgent: 'test',
+    },
+    requestId: 'request-id',
+    routeKey: `${method} ${routePath}`,
+    stage: '$default',
+    time: '19/Mar/2026:00:00:00 +0000',
+    timeEpoch: 1,
+  };
+}
+
 function createEvent(overrides: Partial<APIGatewayProxyEventV2> = {}): APIGatewayProxyEventV2 {
   return {
     body: undefined,
     cookies: [],
     headers: {},
     isBase64Encoded: false,
-    pathParameters: undefined,
+    pathParameters: {},
     queryStringParameters: undefined,
     rawPath: '/v1/artworks',
     rawQueryString: '',
-    requestContext: {
-      accountId: 'account-id',
-      apiId: 'api-id',
-      domainName: 'example.com',
-      domainPrefix: 'example',
-      http: {
-        method: 'GET',
-        path: '/v1/artworks',
-        protocol: 'HTTP/1.1',
-        sourceIp: '127.0.0.1',
-        userAgent: 'test',
-      },
-      requestId: 'request-id',
-      routeKey: '$default',
-      stage: '$default',
-      time: '19/Mar/2026:00:00:00 +0000',
-      timeEpoch: 1,
-    },
-    routeKey: '$default',
+    requestContext: createRequestContext(),
+    routeKey: 'GET /v1/artworks',
     stageVariables: undefined,
     version: '2.0',
     ...overrides,
   };
 }
 
-function createArtworksServiceStub(): ArtworksService {
+function createArtworksServiceStub(overrides: Partial<ArtworksService> = {}): ArtworksService {
   return {
     async getArtworkDetail(artworkId) {
       return {
@@ -121,6 +129,19 @@ function createArtworksServiceStub(): ArtworksService {
         total: 1,
       };
     },
+    async likeArtwork(artworkId) {
+      return {
+        artworkId,
+        liked: true,
+      };
+    },
+    async unlikeArtwork(artworkId) {
+      return {
+        artworkId,
+        liked: false,
+      };
+    },
+    ...overrides,
   };
 }
 
@@ -173,13 +194,11 @@ test('artworks handler returns detail response for GET /v1/artworks/{id}', async
         authorization: `Bearer ${token}`,
       },
       rawPath: '/v1/artworks/12',
-      requestContext: {
-        ...createEvent().requestContext,
-        http: {
-          ...createEvent().requestContext.http,
-          path: '/v1/artworks/12',
-        },
+      pathParameters: {
+        artworkId: '12',
       },
+      requestContext: createRequestContext('/v1/artworks/12', 'GET', '/v1/artworks/{artworkId}'),
+      routeKey: 'GET /v1/artworks/{artworkId}',
     }),
     {} as never,
     createArtworksServiceStub(),
@@ -202,13 +221,7 @@ test('artworks handler returns filters response for GET /v1/artworks/filters', a
         authorization: `Bearer ${token}`,
       },
       rawPath: '/v1/artworks/filters',
-      requestContext: {
-        ...createEvent().requestContext,
-        http: {
-          ...createEvent().requestContext.http,
-          path: '/v1/artworks/filters',
-        },
-      },
+      requestContext: createRequestContext('/v1/artworks/filters'),
     }),
     {} as never,
     createArtworksServiceStub(),
@@ -216,4 +229,114 @@ test('artworks handler returns filters response for GET /v1/artworks/filters', a
 
   assert.equal(response.statusCode, 200);
   assert.equal(JSON.parse(response.body as string).data.zones[0].places[0].id, 1);
+});
+
+// 인증된 사용자가 POST /v1/artworks/{id}/like를 호출하면 liked=true 응답을 받아야 한다.
+test('artworks handler returns liked=true for POST /v1/artworks/{id}/like', async () => {
+  applyServerTestEnv();
+  const token = signAccessToken(1, {
+    secret: 'test-secret',
+  });
+
+  const response = await handleArtworksRequest(
+    createEvent({
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      rawPath: '/v1/artworks/12/like',
+      pathParameters: {
+        artworkId: '12',
+      },
+      requestContext: createRequestContext('/v1/artworks/12/like', 'POST', '/v1/artworks/{artworkId}/like'),
+      routeKey: 'POST /v1/artworks/{artworkId}/like',
+    }),
+    {} as never,
+    createArtworksServiceStub(),
+  ) as APIGatewayProxyStructuredResultV2;
+  const body = JSON.parse(response.body as string);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(body.data, {
+    artworkId: 12,
+    liked: true,
+  });
+});
+
+// 인증된 사용자가 DELETE /v1/artworks/{id}/like를 호출하면 liked=false 응답을 받아야 한다.
+test('artworks handler returns liked=false for DELETE /v1/artworks/{id}/like', async () => {
+  applyServerTestEnv();
+  const token = signAccessToken(1, {
+    secret: 'test-secret',
+  });
+
+  const response = await handleArtworksRequest(
+    createEvent({
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      rawPath: '/v1/artworks/12/like',
+      pathParameters: {
+        artworkId: '12',
+      },
+      requestContext: createRequestContext('/v1/artworks/12/like', 'DELETE', '/v1/artworks/{artworkId}/like'),
+      routeKey: 'DELETE /v1/artworks/{artworkId}/like',
+    }),
+    {} as never,
+    createArtworksServiceStub(),
+  ) as APIGatewayProxyStructuredResultV2;
+  const body = JSON.parse(response.body as string);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(body.data, {
+    artworkId: 12,
+    liked: false,
+  });
+});
+
+// 작품 좋아요 path의 artworkId가 양수 정수가 아니면 validation error로 거부해야 한다.
+test('artworks handler rejects invalid artworkId for like routes', async () => {
+  applyServerTestEnv();
+  const token = signAccessToken(1, {
+    secret: 'test-secret',
+  });
+
+  const response = await handleArtworksRequest(
+    createEvent({
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      rawPath: '/v1/artworks/not-a-number/like',
+      pathParameters: {
+        artworkId: 'not-a-number',
+      },
+      requestContext: createRequestContext('/v1/artworks/not-a-number/like', 'POST', '/v1/artworks/{artworkId}/like'),
+      routeKey: 'POST /v1/artworks/{artworkId}/like',
+    }),
+    {} as never,
+    createArtworksServiceStub(),
+  ) as APIGatewayProxyStructuredResultV2;
+
+  assert.equal(response.statusCode, 422);
+  assert.equal(JSON.parse(response.body as string).error.code, 'VALIDATION_ERROR');
+});
+
+// 작품 좋아요 API는 Authorization 헤더가 없으면 UNAUTHORIZED를 반환해야 한다.
+test('artworks handler requires authorization for like routes', async () => {
+  applyServerTestEnv();
+
+  const response = await handleArtworksRequest(
+    createEvent({
+      rawPath: '/v1/artworks/12/like',
+      pathParameters: {
+        artworkId: '12',
+      },
+      requestContext: createRequestContext('/v1/artworks/12/like', 'POST', '/v1/artworks/{artworkId}/like'),
+      routeKey: 'POST /v1/artworks/{artworkId}/like',
+    }),
+    {} as never,
+    createArtworksServiceStub(),
+  ) as APIGatewayProxyStructuredResultV2;
+
+  assert.equal(response.statusCode, 401);
+  assert.equal(JSON.parse(response.body as string).error.code, 'UNAUTHORIZED');
 });
