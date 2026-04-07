@@ -1,10 +1,8 @@
 import type { RowDataPacket } from 'mysql2/promise';
 
-import type {
-  ArtworkSort,
-} from '../artworks/types.js';
 import { withConnection } from '../../shared/db/pool.js';
 import type {
+  SearchArtworkSort,
   SearchArtworksInput,
   SearchArtworkCard,
   SearchArtworkQueryResult,
@@ -105,7 +103,11 @@ function buildSearchArtworkFilter(
   };
 }
 
-function buildSearchArtworkSortClause(sort: ArtworkSort): string {
+function buildSearchArtworkSortClause(sort: SearchArtworkSort): string {
+  if (sort === 'title') {
+    return `ORDER BY a.title_ko ASC, a.title_en ASC, a.id ASC`;
+  }
+
   if (sort === 'oldest') {
     return `ORDER BY COALESCE(festivals.oldest_festival_year, festivals.latest_festival_year, a.production_year, 0) ASC, a.id ASC`;
   }

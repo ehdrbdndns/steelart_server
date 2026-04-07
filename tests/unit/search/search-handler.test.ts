@@ -221,3 +221,48 @@ test('search handler applies default pagination and sort values', async () => {
   assert.equal(body.data.size, 20);
   assert.equal(body.data.last, true);
 });
+
+// 검색 핸들러는 작품명 순 정렬값을 그대로 서비스에 전달해야 한다.
+test('search handler accepts title sort for GET /v1/search/artworks', async () => {
+  applyServerTestEnv();
+  const token = signAccessToken(1, {
+    secret: 'test-secret',
+  });
+  let receivedSort: string | undefined;
+  const serviceStub: SearchService = {
+    async autocomplete() {
+      return {
+        suggestions: [],
+      };
+    },
+    async searchArtworks(_userId, input) {
+      receivedSort = input.sort;
+
+      return {
+        artworks: [],
+        last: true,
+        page: input.page,
+        size: input.size,
+        totalElements: 0,
+      };
+    },
+  };
+
+  const response = await handleSearchRequest(
+    createEvent({
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      rawQueryString: 'q=포스아트&sort=title&page=1&size=2',
+    }),
+    {} as never,
+    serviceStub,
+  ) as APIGatewayProxyStructuredResultV2;
+  const body = JSON.parse(response.body as string);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(receivedSort, 'title');
+  assert.equal(body.data.page, 1);
+  assert.equal(body.data.size, 2);
+  assert.deepEqual(body.data.artworks, []);
+});

@@ -714,6 +714,30 @@ test('search endpoint reuses artwork sort values for oldest pagination', { skip:
   assert.equal(body.data.last, true);
 });
 
+// 작품 검색 API는 title 정렬일 때 작품명을 기준으로 오름차순 정렬해야 한다.
+test('search endpoint sorts artwork matches by title', { skip: integrationSkipReason }, async () => {
+  const seeded = await seedContentScenario();
+  const token = signAccessToken(seeded.userId);
+
+  const response = await handleSearchRequest(
+    createEvent('/v1/search/artworks', 'q=포스아트&sort=title&page=1&size=20', token),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+  const body = JSON.parse(response.body as string);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(body.data.artworks.map((artwork: { id: number }) => artwork.id), [
+    seeded.artworkIds.spaceWalk,
+    seeded.artworkIds.hwanho,
+  ]);
+  assert.deepEqual(body.data.artworks.map((artwork: { title_ko: string }) => artwork.title_ko), [
+    '스페이스워크',
+    '환호의 빛',
+  ]);
+  assert.equal(body.data.totalElements, 2);
+  assert.equal(body.data.last, true);
+});
+
 // 작품 목록 API는 다중 필터와 festivalYear 기준 정렬 의미를 함께 적용해야 한다.
 test('artworks list endpoint applies multi filters', { skip: integrationSkipReason }, async () => {
   const seeded = await seedContentScenario();

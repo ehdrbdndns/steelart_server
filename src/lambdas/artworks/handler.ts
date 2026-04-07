@@ -81,7 +81,7 @@ export async function handleArtworksRequest(
       });
     }
 
-    if (request.path === '/v1/artworks/{artworkId}/like') {
+    if (request.routePath === '/v1/artworks/{artworkId}/like') {
       assertMethod(request.method, ['POST', 'DELETE']);
       const input = parseInput({
         schema: artworkIdParamSchema,
@@ -100,7 +100,7 @@ export async function handleArtworksRequest(
       });
     }
 
-    if (request.path === '/v1/artworks/{artworkId}') {
+    if (request.routePath === '/v1/artworks/{artworkId}') {
       assertMethod(request.method, ['GET']);
       const input = parseInput({
         schema: artworkIdParamSchema,
