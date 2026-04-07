@@ -5,6 +5,7 @@ import type {
   ArtworkDetail,
   ArtworkFiltersResponse,
   ArtworkImage,
+  ArtworkLikeResponse,
   ArtworkListResponse,
   ZonePlaceFilterOption,
 } from './types.js';
@@ -65,6 +66,13 @@ export function mapArtworkListResponse(
     page,
     size,
     total,
+  };
+}
+
+export function mapArtworkLikeResponse(artworkId: number, liked: boolean): ArtworkLikeResponse {
+  return {
+    artworkId,
+    liked,
   };
 }
 

@@ -50,6 +50,11 @@ export interface ArtworkListResponse {
   total: number;
 }
 
+export interface ArtworkLikeResponse {
+  artworkId: number;
+  liked: boolean;
+}
+
 export interface ArtworkImage {
   image_height: number | null;
   image_url: string;
