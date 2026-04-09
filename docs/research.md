@@ -1,263 +1,284 @@
-# `/v1/artworks` 정렬/좋아요 필터 확장 리서치
+# `/v1/search/artworks` lang 정렬 확장 리서치
 
 ## 문서 목적
-- `GET /v1/artworks`에 `title` 정렬을 추가하고, `likedOnly` 필터를 추가하기 위해 필요한 현재 계약, 코드 구조, DB 기준을 정리한다.
-- 이번 문서는 작품 아카이브 목록 API 확장만 다루며, 상세 조회/좋아요 write API 자체 변경은 범위에서 제외한다.
+- `GET /v1/search/artworks`에 `lang` 쿼리 파라미터를 추가하고, `sort=title`일 때 언어별 제목 컬럼 기준으로 정렬하도록 계약과 구현 영향 범위를 정리한다.
+- 이번 문서는 검색 API의 계약/구현 조사에 집중하며 실제 코드 구현은 범위에 포함하지 않는다.
 
 ## 조사 기준
-- [/Users/donggyunyang/code/steelart/STEELART_SERVER_API_DRAFT.md](/Users/donggyunyang/code/steelart/STEELART_SERVER_API_DRAFT.md)
-- [/Users/donggyunyang/code/steelart/STEELART_APP_SCREEN_SPECS.md](/Users/donggyunyang/code/steelart/STEELART_APP_SCREEN_SPECS.md)
-- [/Users/donggyunyang/code/steelart/STEELART_DB_TABLES.md](/Users/donggyunyang/code/steelart/STEELART_DB_TABLES.md)
-- [src/lambdas/artworks/handler.ts](/Users/donggyunyang/code/steelart/steelart_server/src/lambdas/artworks/handler.ts)
-- [src/domains/artworks/types.ts](/Users/donggyunyang/code/steelart/steelart_server/src/domains/artworks/types.ts)
-- [src/domains/artworks/schemas.ts](/Users/donggyunyang/code/steelart/steelart_server/src/domains/artworks/schemas.ts)
-- [src/domains/artworks/repository.ts](/Users/donggyunyang/code/steelart/steelart_server/src/domains/artworks/repository.ts)
-- [src/domains/artworks/service.ts](/Users/donggyunyang/code/steelart/steelart_server/src/domains/artworks/service.ts)
-- [tests/unit/artworks/artworks-handler.test.ts](/Users/donggyunyang/code/steelart/steelart_server/tests/unit/artworks/artworks-handler.test.ts)
-- [tests/integration/content/content-read.integration.test.ts](/Users/donggyunyang/code/steelart/steelart_server/tests/integration/content/content-read.integration.test.ts)
+- `STEELART_SERVER_API_DRAFT.md`
+- `STEELART_APP_MVP_BRIEF.md`
+- `STEELART_APP_SCREEN_STRUCTURE.md`
+- `STEELART_APP_SCREEN_SPECS.md`
+- `STEELART_DB_TABLES.md`
+- `steelart_dashboard/docs/db-schema.sql`
+- `src/lambdas/search/handler.ts`
+- `src/domains/search/types.ts`
+- `src/domains/search/schemas.ts`
+- `src/domains/search/service.ts`
+- `src/domains/search/repository.ts`
+- `tests/unit/search/search-handler.test.ts`
+- `tests/unit/search/search-schemas.test.ts`
+- `tests/integration/content/content-read.integration.test.ts`
 
-## 변경 목표
-- 기존 `GET /v1/artworks`에 아래 두 기능을 추가한다.
-  - `sort=title`
-  - `likedOnly=true`
-- 기존 필터와 페이지네이션은 그대로 유지한다.
-  - `placeId`
-  - `artistType`
-  - `festivalYear`
+## 변경 요청 요약
+- 대상 엔드포인트: `GET /v1/search/artworks`
+- 추가 파라미터: `lang`
+- 정렬 규칙 변경:
+  - `sort=title` + `lang=ko` -> `ORDER BY a.title_ko ASC, a.id ASC`
+  - `sort=title` + `lang=en` -> `ORDER BY a.title_en ASC, a.id ASC`
+- `latest`, `oldest` 정렬 규칙은 그대로 유지한다.
+
+## 범위 해석
+- 검색 매칭 대상은 그대로 유지하는 것이 맞다.
+  - 작품명
+  - 작가명
+  - 장소명
+- 응답 필드 구조는 그대로 유지하는 것이 맞다.
+  - 여전히 `title_ko`, `title_en`, `artist_name_ko`, `artist_name_en`, `place_name_ko`, `place_name_en`을 함께 반환한다.
+- `lang`은 정렬 기준 컬럼 선택에만 영향을 주고 검색 조건 자체는 바꾸지 않는 것이 이번 요구와 일치한다.
+
+## 앱/제품 관점 확인
+
+### 루트 앱 문서에서 확인되는 사실
+- 공용 검색은 홈/지도/작품 탭에서 재사용된다.
+- 검색 결과는 작품 단위로 제공된다.
+- 검색 결과 화면에서는 필터 없이 정렬만 노출한다.
+- 검색 데이터 요구사항은 작품명, 작가명, 장소명 기준 매칭이다.
+
+### 이번 변경이 공용 검색 구조와 맞는 이유
+- 공용 검색 결과 화면은 정렬만 노출하므로 `lang` 기반 제목 정렬은 이 화면의 계약 확장으로 해석하는 것이 자연스럽다.
+- 검색 매칭 자체를 언어별 단일 컬럼으로 제한하라는 요구는 없으므로, 기존 bilingual 매칭은 유지하는 편이 안전하다.
+
+## 현재 루트 API 계약 상태
+
+### 현재 명시 상태
+- `STEELART_SERVER_API_DRAFT.md`의 `GET /v1/search/artworks`는 현재 아래만 명시한다.
+  - `q`
+  - `sort=latest|oldest|title`
   - `page`
   - `size`
+- 현재 문서의 `title` 정렬 설명은 아래처럼 고정돼 있다.
+```text
+title: title_ko ASC, title_en ASC, id ASC
+```
 
-## 범위에서 제외하는 것
-- `GET /v1/artworks/filters` 응답 구조 변경
-- 작품 좋아요 write API 변경
-- 검색 API 변경
-- 지도/홈 카드 정렬 규칙 변경
-
-## 현재 루트 API 계약
-
-### 현재 문서 상태
-- [STEELART_SERVER_API_DRAFT.md](/Users/donggyunyang/code/steelart/STEELART_SERVER_API_DRAFT.md)의 `GET /v1/artworks`는 현재 아래만 명시한다.
-  - `sort=latest|oldest`
-  - `placeId=1&placeId=2`
-  - `artistType=COMPANY&artistType=INDIVIDUAL`
-  - `festivalYear=2023&festivalYear=2024`
-  - `page`
-  - `size`
-- 즉 `title` 정렬과 `likedOnly`는 아직 계약에 없다.
-
-### 이번 변경으로 문서에 추가되어야 할 것
-- `sort=latest|oldest|title`
-- `likedOnly=true`
-- `likedOnly`는 선택적 boolean이며 `true`일 때만 적용된다는 점
-- `likedOnly`를 써도 기존 `liked: boolean` 응답 필드는 계속 유지된다는 점
-
-## 앱 관점에서 필요한 이유
-
-### 작품 아카이브 화면 요구사항
-- [STEELART_APP_SCREEN_SPECS.md](/Users/donggyunyang/code/steelart/STEELART_APP_SCREEN_SPECS.md)의 `5-1. 작품 아카이브 목록 화면` 요구사항은 현재 아래와 같다.
-  - 정렬 옵션:
-    - 최신순
-    - 오래된 순
-  - 필터 옵션:
-    - 설치 장소
-    - 제작 주체
-    - 축제 연도
-  - 카드 구성:
-    - 작품 이미지
-    - 작가명
-    - 위치
-    - 좋아요 여부 아이콘
-
-### 이번 추가 요구사항 해석
-- `title` 정렬은 작품명 순 정렬을 직접 지원하려는 요구다.
-- `likedOnly`는 사용자가 좋아요한 작품만 별도로 좁혀보고 싶은 요구다.
-- 둘 다 작품 아카이브 결과 목록을 좁히거나 정렬하는 규칙이므로 `GET /v1/artworks`에 붙이는 것이 자연스럽다.
+### 계약에서 바뀌어야 하는 부분
+- 엔드포인트 예시에 `lang=ko|en` 추가
+- 쿼리 파라미터 목록에 `lang` 추가
+- `lang` 기본값을 `ko`로 명시
+- `lang`은 `sort=title`일 때만 영향을 준다고 명시
+- `title` 정렬 설명을 언어별 분기로 교체
 
 ## 현재 구현 상태
 
 ### handler
-- [src/lambdas/artworks/handler.ts](/Users/donggyunyang/code/steelart/steelart_server/src/lambdas/artworks/handler.ts)
-- 현재 `GET /v1/artworks`는 아래 query만 읽는다.
-  - `artistType`
-  - `festivalYear`
+- `src/lambdas/search/handler.ts`
+- 현재 `GET /v1/search/artworks`는 아래 query만 읽는다.
   - `page`
-  - `placeId`
+  - `q`
   - `size`
   - `sort`
-- `likedOnly`는 아직 읽지 않는다.
+- `lang`은 아직 읽지 않는다.
+- 반면 `GET /v1/search/autocomplete`는 이미 `lang`을 읽고 있다.
 
-### schema
-- [src/domains/artworks/schemas.ts](/Users/donggyunyang/code/steelart/steelart_server/src/domains/artworks/schemas.ts)
-- 현재 schema:
+### types
+- `src/domains/search/types.ts`
+- 현재 `SearchArtworksInput`은 아래만 가진다.
 ```ts
-{
-  artistType: ArtistType[];
-  festivalYear: string[];
+interface SearchArtworksInput {
   page: number;
-  placeId: number[];
+  q: string;
   size: number;
-  sort: 'latest' | 'oldest';
+  sort: 'latest' | 'oldest' | 'title';
 }
 ```
-- 즉 아래가 아직 없다.
-  - `sort='title'`
-  - `likedOnly: boolean`
-
-### type
-- [src/domains/artworks/types.ts](/Users/donggyunyang/code/steelart/steelart_server/src/domains/artworks/types.ts)
-- 현재:
+- 같은 파일 안에 자동완성용 언어 enum은 이미 있다.
 ```ts
-export const ARTWORK_SORT_VALUES = ['latest', 'oldest'] as const;
+export const SEARCH_AUTOCOMPLETE_LANGUAGE_VALUES = ['ko', 'en'] as const;
+export type SearchAutocompleteLanguage =
+  (typeof SEARCH_AUTOCOMPLETE_LANGUAGE_VALUES)[number];
 ```
-- `ArtworkListInput`도 아직 `likedOnly`를 가지지 않는다.
+- 따라서 검색 작품 API도 같은 언어 값 체계를 재사용하거나, 더 일반적인 `SEARCH_LANGUAGE_VALUES`로 이름을 정리하는 선택지가 있다.
+
+### schema
+- `src/domains/search/schemas.ts`
+- 현재 `searchArtworksQuerySchema`는 `lang` 없이 아래만 검증한다.
+```ts
+{
+  page: number;
+  q: string;
+  size: number;
+  sort: 'latest' | 'oldest' | 'title';
+}
+```
+- `searchAutocompleteQuerySchema`에는 이미 `lang` 기본값 `ko`가 존재한다.
+- 같은 도메인 안에서 이미 쓰는 기본값을 검색 작품 API에도 맞추는 편이 일관적이다.
 
 ### repository
-- [src/domains/artworks/repository.ts](/Users/donggyunyang/code/steelart/steelart_server/src/domains/artworks/repository.ts)
-- 현재 `listArtworks()`는 아래 where만 조합한다.
-  - `a.deleted_at IS NULL`
-  - `ar.deleted_at IS NULL`
-  - `p.deleted_at IS NULL`
-  - optional `a.place_id IN (...)`
-  - optional `ar.type IN (...)`
-  - optional `EXISTS (...) artwork_festivals.year IN (...)`
-- 좋아요는 현재 응답용 계산만 한다.
-```sql
-LEFT JOIN artwork_likes al ON al.artwork_id = a.id AND al.user_id = ?
-CASE WHEN al.user_id IS NULL THEN 0 ELSE 1 END AS liked
-```
-- 즉 `likedOnly`는 아직 where에 들어가지 않는다.
-
-### 현재 정렬 로직
-- `buildArtworkSortClause(sort)`는 지금 아래 둘만 지원한다.
-  - `latest`
-  - `oldest`
-- 정렬 기준은 축제 연도 메타를 우선 사용한다.
-```sql
-ORDER BY COALESCE(festivals.latest_festival_year, festivals.oldest_festival_year, a.production_year, 0) DESC, a.id DESC
-```
-- `title` 정렬은 아직 없다.
-
-## `likedOnly` 구현에 필요한 DB 기준
-
-### `artwork_likes`
-- [STEELART_DB_TABLES.md](/Users/donggyunyang/code/steelart/STEELART_DB_TABLES.md) 기준 현재 확인된 컬럼:
-  - `user_id`
-  - `artwork_id`
-  - `created_at`
-- Notes:
-  - `joins to artworks for liked-artwork history`
-  - `likely unique by user/artwork pair, but that is not verified from DDL yet`
-
-### 현재 코드에서 확인되는 사실
-- 작품 좋아요 write API는 이미 존재한다.
-  - `POST /v1/artworks/{artworkId}/like`
-  - `DELETE /v1/artworks/{artworkId}/like`
-- repository도 이미 아래 동작을 한다.
-  - insert:
-    - `INSERT INTO artwork_likes ... ON DUPLICATE KEY UPDATE created_at = created_at`
-  - delete:
-    - `DELETE FROM artwork_likes WHERE user_id = ? AND artwork_id = ?`
-- 따라서 `likedOnly`를 read API에 추가하는 데 필요한 저장 테이블은 이미 준비되어 있다.
-
-## 권장 계약
-
-### 권장 쿼리 파라미터
-```http
-GET /v1/artworks?sort=latest|oldest|title&placeId=1&artistType=COMPANY&festivalYear=2024&likedOnly=true&page=1&size=24
-```
-
-### 권장 의미
-- `sort`
-  - `latest`: 최신 축제 연도/제작 연도 우선
-  - `oldest`: 오래된 축제 연도/제작 연도 우선
-  - `title`: 작품명 오름차순
-- `likedOnly`
-  - 파라미터 없음: 필터 미적용
-  - `false`: 필터 미적용으로 취급
-  - `true`: 현재 사용자가 좋아요한 작품만 조회
-
-## SQL 관점 권장안
-
-### 1. `title` 정렬
-- 지금 응답은 bilingual이지만, 정렬 기준은 한국어 우선이 자연스럽다.
-- 권장 SQL:
-```sql
-ORDER BY a.title_ko ASC, a.title_en ASC, a.id ASC
-```
-- 이유:
-  - 기존 search도 `title_ko`, `title_en`, `id` 순으로 title 정렬을 구현하고 있다.
-  - 같은 제목일 때 `id`까지 넣어 정렬 안정성을 확보할 수 있다.
-
-### 2. `likedOnly`
-- 응답용 `LEFT JOIN artwork_likes al ...`는 그대로 유지하되, where에 아래를 추가하는 것이 가장 자연스럽다.
-```sql
-AND EXISTS (
-  SELECT 1
-  FROM artwork_likes al_filter
-  WHERE al_filter.artwork_id = a.id
-    AND al_filter.user_id = ?
-)
-```
-- 이유:
-  - count 쿼리와 list 쿼리 양쪽에 같은 의미를 재사용하기 쉽다.
-  - 응답용 `liked` 계산과 where 조건을 분리해서 읽을 수 있다.
-
-### 최종 where 구조 예시
+- `src/domains/search/repository.ts`
+- 현재 검색 조건은 양언어 컬럼을 모두 대상으로 잡는다.
 ```sql
 WHERE a.deleted_at IS NULL
   AND ar.deleted_at IS NULL
   AND p.deleted_at IS NULL
-  AND ...place filter...
-  AND ...artistType filter...
-  AND ...festivalYear filter...
-  AND ...likedOnly filter...
+  AND (
+    a.title_ko LIKE ?
+    OR a.title_en LIKE ?
+    OR ar.name_ko LIKE ?
+    OR ar.name_en LIKE ?
+    OR p.name_ko LIKE ?
+    OR p.name_en LIKE ?
+  )
+```
+- 현재 `buildSearchArtworkSortClause(sort)`의 `title` 분기는 아래다.
+```sql
+ORDER BY a.title_ko ASC, a.title_en ASC, a.id ASC
+```
+- 즉 현재 구현은 `lang`과 무관하게 한국어 제목, 영문 제목, id 순으로 정렬한다.
+
+### service / mapper
+- `src/domains/search/service.ts`
+- `src/domains/search/mapper.ts`
+- 둘 다 입력 전달과 응답 포맷 구성만 담당한다.
+- `lang` 추가 시 service/mapper는 구조 변경 없이 입력 타입만 따라가면 된다.
+
+## DB / SQL 관점 조사
+
+### 현재 스키마에서 확인되는 컬럼
+- `STEELART_DB_TABLES.md`
+- `artworks`
+  - `title_ko` varchar(200) not null
+  - `title_en` varchar(200) not null
+- 따라서 이번 요구를 위한 DB 마이그레이션은 필요 없다.
+
+### raw DDL에서 확인되는 추가 사실
+- `steelart_dashboard/docs/db-schema.sql`
+- `artworks` 테이블은 `utf8mb4_unicode_ci` collation을 사용한다.
+- 명시된 인덱스는 아래 정도다.
+  - `artist_id`
+  - `place_id`
+  - `category`
+  - `likes_count`
+  - `deleted_at`
+- `title_ko`, `title_en` 전용 인덱스는 없다.
+
+### 해석
+- 이번 변경은 정렬 기준 컬럼만 바꾸는 수준이므로 DB 구조 변경은 필요 없다.
+- 현재 검색 자체가 `%keyword%` 기반 `LIKE` 검색이라 title 인덱스 부재는 이미 존재하는 조건이다.
+- 따라서 `lang` 추가가 성능을 본질적으로 악화시키지는 않는다.
+- 다만 정확한 locale-aware 정렬 규칙이 더 중요해지면 collation 전략은 별도 과제로 다뤄야 한다.
+
+## 권장 계약안
+
+### 권장 요청 형식
+```http
+GET /v1/search/artworks?q={keyword}&sort=latest|oldest|title&lang=ko|en&page=1&size=20
 ```
 
-## count / list 쿼리에 대한 영향
-- 현재 `listArtworks()`는 아래 두 쿼리로 나뉜다.
-  - `COUNT(*) AS total`
-  - 실제 목록 query
-- `likedOnly`가 추가되면 두 쿼리에 동일한 where 조건을 넣어야 한다.
-- 즉 변경은 아래 순서로 가는 것이 맞다.
-  1. `whereClauses`에 `likedOnly` 분기 추가
-  2. `filterParams`와 `listParams` 순서 재정리
-  3. count/list 쿼리 모두 같은 조건 사용
+### 권장 파라미터 의미
+- `q`
+  - 필수
+- `sort`
+  - 선택값
+  - `latest | oldest | title`
+  - 기본값 `latest`
+- `lang`
+  - 선택값
+  - `ko | en`
+  - 기본값 `ko`
+  - `sort=title`일 때만 의미가 있다.
+- `page`
+  - 선택값
+  - 기본값 `1`
+- `size`
+  - 선택값
+  - 기본값 `20`
+
+### 왜 `lang`을 선택 파라미터로 두는가
+- 기존 앱/클라이언트는 현재 `lang` 없이 이 API를 호출하고 있다.
+- `lang`을 필수로 만들면 하위 호환성이 깨진다.
+- 같은 도메인의 `autocomplete`도 이미 `lang` 기본값을 `ko`로 처리하고 있으므로 계약 일관성도 맞는다.
+
+## 권장 구현 포인트
+
+### 1. 타입/검증
+- `SearchArtworksInput`에 `lang: 'ko' | 'en'` 추가
+- `searchArtworksQuerySchema`에 `lang` 추가
+- 기본값은 `ko`
+- 허용값은 `ko`, `en`
+
+### 2. handler
+- `src/lambdas/search/handler.ts`에서 `request.getQuery('lang')`를 읽어 schema에 전달
+
+### 3. repository
+- `buildSearchArtworkSortClause(sort, lang)` 형태로 시그니처 변경
+- `title` 분기에서 아래처럼 언어별 컬럼을 고른다.
+```sql
+-- lang=ko
+ORDER BY a.title_ko ASC, a.id ASC
+
+-- lang=en
+ORDER BY a.title_en ASC, a.id ASC
+```
+- `latest`, `oldest` 분기는 그대로 둔다.
+- 검색 where 절은 그대로 유지한다.
+
+### 4. 문서
+- 루트 계약 문서 `STEELART_SERVER_API_DRAFT.md` 수정
+- 구현 전에 로컬 조사 결과는 `docs/research.md`로 남긴다.
+
+## 테스트 영향 범위
+
+### unit test
+- `tests/unit/search/search-schemas.test.ts`
+  - `lang` 기본값이 `ko`로 들어가는지 확인
+  - `lang=en` 허용 확인
+  - `lang=jp` 같은 허용되지 않은 값 거부 확인
+- `tests/unit/search/search-handler.test.ts`
+  - `lang=en`이 handler에서 service까지 전달되는지 확인
+  - 기존 `sort=title` 테스트를 `lang` 조합까지 확장 가능
+
+### integration test
+- `tests/integration/content/content-read.integration.test.ts`
+  - 현재 fixture만으로 `lang=ko`와 `lang=en`을 모두 검증할 수 있다.
+- 이유:
+  - `q=포스아트` 검색 결과는 현재 두 작품이다.
+    - `스페이스워크` / `Space Walk`
+    - `환호의 빛` / `Light of Hwanho`
+  - 따라서 정렬 기대값이 언어별로 달라진다.
+```text
+sort=title&lang=ko -> 스페이스워크, 환호의 빛
+sort=title&lang=en -> Light of Hwanho, Space Walk
+```
+- 즉 새 시드 데이터 없이도 영어/한국어 정렬 분기를 둘 다 검증할 수 있다.
 
 ## 변경 대상 파일
 
+### 계약/문서
+- `STEELART_SERVER_API_DRAFT.md`
+- `docs/research.md`
+
 ### 코드
-- [src/domains/artworks/types.ts](/Users/donggyunyang/code/steelart/steelart_server/src/domains/artworks/types.ts)
-  - `ARTWORK_SORT_VALUES`
-  - `ArtworkListInput`
-- [src/domains/artworks/schemas.ts](/Users/donggyunyang/code/steelart/steelart_server/src/domains/artworks/schemas.ts)
-  - `sort`에 `title` 추가
-  - `likedOnly` 추가
-- [src/lambdas/artworks/handler.ts](/Users/donggyunyang/code/steelart/steelart_server/src/lambdas/artworks/handler.ts)
-  - query parsing에 `likedOnly` 추가
-- [src/domains/artworks/repository.ts](/Users/donggyunyang/code/steelart/steelart_server/src/domains/artworks/repository.ts)
-  - `buildArtworkSortClause()`에 `title`
-  - `listArtworks()` where에 `likedOnly`
-- [src/domains/artworks/service.ts](/Users/donggyunyang/code/steelart/steelart_server/src/domains/artworks/service.ts)
-  - input 전달만 추가
+- `src/lambdas/search/handler.ts`
+- `src/domains/search/types.ts`
+- `src/domains/search/schemas.ts`
+- `src/domains/search/repository.ts`
 
-### 문서
-- [/Users/donggyunyang/code/steelart/STEELART_SERVER_API_DRAFT.md](/Users/donggyunyang/code/steelart/STEELART_SERVER_API_DRAFT.md)
-- 필요하면 [docs/plan.md](/Users/donggyunyang/code/steelart/steelart_server/docs/plan.md)
+### 테스트
+- `tests/unit/search/search-handler.test.ts`
+- `tests/unit/search/search-schemas.test.ts`
+- `tests/integration/content/content-read.integration.test.ts`
 
-## 테스트 관점
+## 주의사항
+- `lang`은 검색 결과에 표시할 언어 선택이 아니라 `title` 정렬 기준 선택이다.
+- 검색 매칭 조건을 언어별 단일 컬럼으로 줄이면 기존 검색 결과가 달라질 수 있으므로 이번 변경 범위에 넣지 않는 것이 안전하다.
+- 응답 payload는 바꾸지 않아도 된다.
+- DB 마이그레이션은 필요 없다.
 
-### unit test에서 추가되어야 할 것
-- [tests/unit/artworks/artworks-handler.test.ts](/Users/donggyunyang/code/steelart/steelart_server/tests/unit/artworks/artworks-handler.test.ts)
-  - `sort=title`
-  - `likedOnly=true`
-  - 두 값이 parse되어 service로 전달되는지 확인
-- schema test가 없다면 artworks query schema용 단위 테스트 추가 검토
-
-### integration test에서 추가되어야 할 것
-- [tests/integration/content/content-read.integration.test.ts](/Users/donggyunyang/code/steelart/steelart_server/tests/integration/content/content-read.integration.test.ts)
-  - `sort=title`일 때 제목순 정렬 확인
-  - `likedOnly=true`일 때 좋아요한 작품만 남는지 확인
-  - `likedOnly=true` + 기존 `placeId` / `artistType` / `festivalYear`와 함께 동작하는지 확인
+## 결론
+- 이번 변경은 계약 문서, query validation, handler input, repository 정렬 함수까지만 수정하면 되는 작은 범위의 API 확장이다.
+- 가장 중요한 제품 결정은 `lang`을 선택 파라미터 + 기본값 `ko`로 두어 하위 호환성을 지키는 것이다.
+- 테스트는 기존 fixture를 재사용해 `ko/en` 정렬 차이를 명확하게 검증할 수 있다.
 
 ## 구현 난이도 / 리스크
 

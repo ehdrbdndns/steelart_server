@@ -2,6 +2,7 @@ import type { RowDataPacket } from 'mysql2/promise';
 
 import { withConnection } from '../../shared/db/pool.js';
 import type {
+  SearchAutocompleteLanguage,
   SearchArtworkSort,
   SearchArtworksInput,
   SearchArtworkCard,
@@ -103,9 +104,14 @@ function buildSearchArtworkFilter(
   };
 }
 
-function buildSearchArtworkSortClause(sort: SearchArtworkSort): string {
+function buildSearchArtworkSortClause(
+  sort: SearchArtworkSort,
+  lang: SearchAutocompleteLanguage,
+): string {
   if (sort === 'title') {
-    return `ORDER BY a.title_ko ASC, a.title_en ASC, a.id ASC`;
+    return lang === 'en'
+      ? `ORDER BY a.title_en ASC, a.id ASC`
+      : `ORDER BY a.title_ko ASC, a.id ASC`;
   }
 
   if (sort === 'oldest') {
@@ -261,7 +267,7 @@ export function createSearchRepository(): SearchRepository {
            ${FESTIVAL_META_JOIN_SQL}
            LEFT JOIN artwork_likes al ON al.artwork_id = a.id AND al.user_id = ?
            ${filter.whereClause}
-           ${buildSearchArtworkSortClause(input.sort)}
+           ${buildSearchArtworkSortClause(input.sort, input.lang)}
            LIMIT ? OFFSET ?`,
           [userId, ...filter.params, input.size, offset],
         );

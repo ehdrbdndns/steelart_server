@@ -24,6 +24,7 @@ export const SEARCH_ARTWORK_SORT_VALUES = [
 export type SearchArtworkSort = (typeof SEARCH_ARTWORK_SORT_VALUES)[number];
 
 export interface SearchArtworksInput {
+  lang: SearchAutocompleteLanguage;
   page: number;
   q: string;
   size: number;

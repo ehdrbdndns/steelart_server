@@ -222,12 +222,13 @@ test('search handler applies default pagination and sort values', async () => {
   assert.equal(body.data.last, true);
 });
 
-// 검색 핸들러는 작품명 순 정렬값을 그대로 서비스에 전달해야 한다.
-test('search handler accepts title sort for GET /v1/search/artworks', async () => {
+// 검색 핸들러는 작품명 순 정렬값과 언어 값을 그대로 서비스에 전달해야 한다.
+test('search handler accepts title sort and lang for GET /v1/search/artworks', async () => {
   applyServerTestEnv();
   const token = signAccessToken(1, {
     secret: 'test-secret',
   });
+  let receivedLang: string | undefined;
   let receivedSort: string | undefined;
   const serviceStub: SearchService = {
     async autocomplete() {
@@ -236,6 +237,7 @@ test('search handler accepts title sort for GET /v1/search/artworks', async () =
       };
     },
     async searchArtworks(_userId, input) {
+      receivedLang = input.lang;
       receivedSort = input.sort;
 
       return {
@@ -253,7 +255,7 @@ test('search handler accepts title sort for GET /v1/search/artworks', async () =
       headers: {
         authorization: `Bearer ${token}`,
       },
-      rawQueryString: 'q=포스아트&sort=title&page=1&size=2',
+      rawQueryString: 'q=포스아트&sort=title&lang=en&page=1&size=2',
     }),
     {} as never,
     serviceStub,
@@ -261,8 +263,50 @@ test('search handler accepts title sort for GET /v1/search/artworks', async () =
   const body = JSON.parse(response.body as string);
 
   assert.equal(response.statusCode, 200);
+  assert.equal(receivedLang, 'en');
   assert.equal(receivedSort, 'title');
   assert.equal(body.data.page, 1);
   assert.equal(body.data.size, 2);
   assert.deepEqual(body.data.artworks, []);
+});
+
+// 검색 핸들러는 lang이 없으면 ko 기본값을 서비스에 전달해야 한다.
+test('search handler applies default lang for GET /v1/search/artworks', async () => {
+  applyServerTestEnv();
+  const token = signAccessToken(1, {
+    secret: 'test-secret',
+  });
+  let receivedLang: string | undefined;
+  const serviceStub: SearchService = {
+    async autocomplete() {
+      return {
+        suggestions: [],
+      };
+    },
+    async searchArtworks(_userId, input) {
+      receivedLang = input.lang;
+
+      return {
+        artworks: [],
+        last: true,
+        page: input.page,
+        size: input.size,
+        totalElements: 0,
+      };
+    },
+  };
+
+  const response = await handleSearchRequest(
+    createEvent({
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      rawQueryString: 'q=포항&sort=title&page=1&size=2',
+    }),
+    {} as never,
+    serviceStub,
+  ) as APIGatewayProxyStructuredResultV2;
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(receivedLang, 'ko');
 });
