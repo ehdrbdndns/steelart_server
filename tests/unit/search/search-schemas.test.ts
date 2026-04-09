@@ -16,6 +16,7 @@ test('search schema trims q and applies pagination defaults', () => {
       q: '  포항  ',
     },
   }), {
+    lang: 'ko',
     page: 1,
     q: '포항',
     size: 20,
@@ -23,8 +24,25 @@ test('search schema trims q and applies pagination defaults', () => {
   });
 });
 
-// 검색 스키마는 빈 query와 허용되지 않은 sort 값을 거부해야 한다.
-test('search schema rejects blank query and invalid sort', () => {
+// 검색 스키마는 허용된 lang 값을 그대로 통과시켜야 한다.
+test('search schema accepts supported lang values', () => {
+  assert.deepEqual(parseInput({
+    schema: searchArtworksQuerySchema,
+    input: {
+      lang: 'en',
+      q: 'Pohang',
+    },
+  }), {
+    lang: 'en',
+    page: 1,
+    q: 'Pohang',
+    size: 20,
+    sort: 'latest',
+  });
+});
+
+// 검색 스키마는 빈 query와 허용되지 않은 sort/lang 값을 거부해야 한다.
+test('search schema rejects blank query and invalid sort/lang', () => {
   assert.throws(
     () => parseInput({
       schema: searchArtworksQuerySchema,
@@ -45,6 +63,17 @@ test('search schema rejects blank query and invalid sort', () => {
     }),
     (error: unknown) => error instanceof AppError && error.code === 'VALIDATION_ERROR',
   );
+
+  assert.throws(
+    () => parseInput({
+      schema: searchArtworksQuerySchema,
+      input: {
+        lang: 'jp',
+        q: '포항',
+      },
+    }),
+    (error: unknown) => error instanceof AppError && error.code === 'VALIDATION_ERROR',
+  );
 });
 
 // 검색 스키마는 작품명 순 정렬값을 허용해야 한다.
@@ -56,6 +85,7 @@ test('search schema accepts title sort', () => {
       sort: 'title',
     },
   }), {
+    lang: 'ko',
     page: 1,
     q: '포항',
     size: 20,
