@@ -6,6 +6,7 @@ import {
 } from './types.js';
 
 export const searchArtworksQuerySchema = z.object({
+  lang: z.enum(SEARCH_AUTOCOMPLETE_LANGUAGE_VALUES).default('ko'),
   page: z.coerce.number().int().positive().default(1),
   q: z.string().trim().min(1, 'Search query is required'),
   size: z.coerce.number().int().positive().max(100).default(20),

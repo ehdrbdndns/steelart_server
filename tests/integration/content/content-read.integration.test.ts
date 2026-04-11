@@ -714,8 +714,8 @@ test('search endpoint reuses artwork sort values for oldest pagination', { skip:
   assert.equal(body.data.last, true);
 });
 
-// 작품 검색 API는 title 정렬일 때 작품명을 기준으로 오름차순 정렬해야 한다.
-test('search endpoint sorts artwork matches by title', { skip: integrationSkipReason }, async () => {
+// 작품 검색 API는 title 정렬일 때 lang이 없으면 한국어 제목 기준으로 오름차순 정렬해야 한다.
+test('search endpoint sorts artwork matches by korean title by default', { skip: integrationSkipReason }, async () => {
   const seeded = await seedContentScenario();
   const token = signAccessToken(seeded.userId);
 
@@ -733,6 +733,30 @@ test('search endpoint sorts artwork matches by title', { skip: integrationSkipRe
   assert.deepEqual(body.data.artworks.map((artwork: { title_ko: string }) => artwork.title_ko), [
     '스페이스워크',
     '환호의 빛',
+  ]);
+  assert.equal(body.data.totalElements, 2);
+  assert.equal(body.data.last, true);
+});
+
+// 작품 검색 API는 title 정렬일 때 lang=en이면 영어 제목 기준으로 오름차순 정렬해야 한다.
+test('search endpoint sorts artwork matches by english title when lang is en', { skip: integrationSkipReason }, async () => {
+  const seeded = await seedContentScenario();
+  const token = signAccessToken(seeded.userId);
+
+  const response = await handleSearchRequest(
+    createEvent('/v1/search/artworks', 'q=포스아트&sort=title&lang=en&page=1&size=20', token),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+  const body = JSON.parse(response.body as string);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(body.data.artworks.map((artwork: { id: number }) => artwork.id), [
+    seeded.artworkIds.hwanho,
+    seeded.artworkIds.spaceWalk,
+  ]);
+  assert.deepEqual(body.data.artworks.map((artwork: { title_en: string }) => artwork.title_en), [
+    'Light of Hwanho',
+    'Space Walk',
   ]);
   assert.equal(body.data.totalElements, 2);
   assert.equal(body.data.last, true);

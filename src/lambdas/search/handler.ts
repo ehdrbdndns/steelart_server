@@ -70,6 +70,7 @@ export async function handleSearchRequest(
       const input = parseInput({
         schema: searchArtworksQuerySchema,
         input: {
+          lang: request.getQuery('lang'),
           page: request.getQuery('page'),
           q: request.getQuery('q'),
           size: request.getQuery('size'),
