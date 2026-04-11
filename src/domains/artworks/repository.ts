@@ -10,6 +10,7 @@ import type {
   ArtworkCard,
   ArtworkDetail,
   ArtworkImage,
+  ArtworkListLang,
   ArtworkListInput,
   ArtworkSort,
   PlaceFilterOption,
@@ -193,9 +194,15 @@ function mapArtworkDetailRow(
   };
 }
 
-function buildArtworkSortClause(sort: ArtworkSort): string {
+function buildArtworkSortClause(sort: ArtworkSort, lang: ArtworkListLang): string {
   if (sort === 'oldest') {
     return `ORDER BY COALESCE(festivals.oldest_festival_year, festivals.latest_festival_year, a.production_year, 0) ASC, a.id ASC`;
+  }
+
+  if (sort === 'title') {
+    return lang === 'en'
+      ? 'ORDER BY a.title_en ASC, a.id ASC'
+      : 'ORDER BY a.title_ko ASC, a.id ASC';
   }
 
   return `ORDER BY COALESCE(festivals.latest_festival_year, festivals.oldest_festival_year, a.production_year, 0) DESC, a.id DESC`;
@@ -394,6 +401,16 @@ export const artworksRepository: ArtworksRepository = {
         filterParams.push(...input.festivalYears);
       }
 
+      if (input.likedOnly) {
+        whereClauses.push(`EXISTS (
+          SELECT 1
+          FROM artwork_likes al_filter
+          WHERE al_filter.artwork_id = a.id
+            AND al_filter.user_id = ?
+        )`);
+        filterParams.push(userId);
+      }
+
       const whereClause = `WHERE ${whereClauses.join(' AND ')}`;
       const [countRows] = await connection.execute<CountRow[]>(
         `SELECT COUNT(*) AS total
@@ -424,7 +441,7 @@ export const artworksRepository: ArtworksRepository = {
          ${FESTIVAL_META_JOIN_SQL}
          LEFT JOIN artwork_likes al ON al.artwork_id = a.id AND al.user_id = ?
          ${whereClause}
-         ${buildArtworkSortClause(input.sort)}
+         ${buildArtworkSortClause(input.sort, input.lang)}
          LIMIT ? OFFSET ?`,
         [userId, ...filterParams, input.size, offset],
       );

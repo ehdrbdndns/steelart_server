@@ -1,10 +1,12 @@
 export const ARTIST_TYPE_VALUES = ['COMPANY', 'INDIVIDUAL'] as const;
 export const ARTWORK_CATEGORY_VALUES = ['STEEL_ART', 'PUBLIC_ART'] as const;
-export const ARTWORK_SORT_VALUES = ['latest', 'oldest'] as const;
+export const ARTWORK_SORT_VALUES = ['latest', 'oldest', 'title'] as const;
+export const ARTWORK_LIST_LANG_VALUES = ['ko', 'en'] as const;
 
 export type ArtistType = (typeof ARTIST_TYPE_VALUES)[number];
 export type ArtworkCategory = (typeof ARTWORK_CATEGORY_VALUES)[number];
 export type ArtworkSort = (typeof ARTWORK_SORT_VALUES)[number];
+export type ArtworkListLang = (typeof ARTWORK_LIST_LANG_VALUES)[number];
 
 export interface ArtworkCard {
   artist_name_en: string;
@@ -37,6 +39,8 @@ export interface ArtworkArchiveItem {
 export interface ArtworkListInput {
   artistTypes: ArtistType[];
   festivalYears: string[];
+  lang: ArtworkListLang;
+  likedOnly: boolean;
   page: number;
   placeIds: number[];
   size: number;
