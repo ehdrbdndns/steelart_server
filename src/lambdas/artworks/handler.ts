@@ -51,6 +51,8 @@ export async function handleArtworksRequest(
         input: {
           artistType: request.getQueryList('artistType'),
           festivalYear: request.getQueryList('festivalYear'),
+          lang: request.getQuery('lang'),
+          likedOnly: request.getQuery('likedOnly'),
           page: request.getQuery('page'),
           placeId: request.getQueryList('placeId'),
           size: request.getQuery('size'),
@@ -61,6 +63,8 @@ export async function handleArtworksRequest(
       const result = await service.listArtworks({
         artistTypes: input.artistType,
         festivalYears: input.festivalYear,
+        lang: input.lang,
+        likedOnly: input.likedOnly,
         page: input.page,
         placeIds: input.placeId,
         size: input.size,

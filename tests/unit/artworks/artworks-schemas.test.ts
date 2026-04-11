@@ -21,10 +21,33 @@ test('artworks schema parses multi filters and defaults', () => {
   }), {
     artistType: ['COMPANY'],
     festivalYear: ['2024', '2023'],
+    lang: 'ko',
+    likedOnly: false,
     page: 1,
     placeId: [1, 2],
     size: 24,
     sort: 'oldest',
+  });
+});
+
+// 작품 목록 스키마는 title 정렬용 lang과 likedOnly boolean을 함께 파싱해야 한다.
+test('artworks schema parses lang and likedOnly values', () => {
+  assert.deepEqual(parseInput({
+    schema: artworksListQuerySchema,
+    input: {
+      lang: 'en',
+      likedOnly: 'true',
+      sort: 'title',
+    },
+  }), {
+    artistType: [],
+    festivalYear: [],
+    lang: 'en',
+    likedOnly: true,
+    page: 1,
+    placeId: [],
+    size: 24,
+    sort: 'title',
   });
 });
 

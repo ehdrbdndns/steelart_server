@@ -791,6 +791,111 @@ test('artworks list endpoint applies multi filters', { skip: integrationSkipReas
   assert.equal(body.data.artworks[0].thumbnail_image_height, 800);
 });
 
+// 작품 목록 API는 lang=ko일 때 한국어 제목 기준으로 정렬해야 한다.
+test('artworks list endpoint sorts by Korean title when sort=title and lang=ko', { skip: integrationSkipReason }, async () => {
+  const seeded = await seedContentScenario();
+  const token = signAccessToken(seeded.userId);
+
+  const query = new URLSearchParams();
+  query.set('sort', 'title');
+  query.set('lang', 'ko');
+  query.set('page', '1');
+  query.set('size', '24');
+
+  const response = await handleArtworksRequest(
+    createEvent('/v1/artworks', query.toString(), token),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+  const body = JSON.parse(response.body as string);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(body.data.artworks.map((artwork: { id: number }) => artwork.id), [
+    seeded.artworkIds.spaceWalk,
+    seeded.artworkIds.yeongilWind,
+    seeded.artworkIds.hwanho,
+  ]);
+  assert.equal(body.data.total, 3);
+});
+
+// 작품 목록 API는 lang=en일 때 영어 제목 기준으로 정렬해야 한다.
+test('artworks list endpoint sorts by English title when sort=title and lang=en', { skip: integrationSkipReason }, async () => {
+  const seeded = await seedContentScenario();
+  const token = signAccessToken(seeded.userId);
+
+  const query = new URLSearchParams();
+  query.set('sort', 'title');
+  query.set('lang', 'en');
+  query.set('page', '1');
+  query.set('size', '24');
+
+  const response = await handleArtworksRequest(
+    createEvent('/v1/artworks', query.toString(), token),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+  const body = JSON.parse(response.body as string);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(body.data.artworks.map((artwork: { id: number }) => artwork.id), [
+    seeded.artworkIds.hwanho,
+    seeded.artworkIds.spaceWalk,
+    seeded.artworkIds.yeongilWind,
+  ]);
+  assert.equal(body.data.total, 3);
+});
+
+// 작품 목록 API는 likedOnly=true일 때 사용자가 좋아요한 작품만 반환해야 한다.
+test('artworks list endpoint applies likedOnly filter', { skip: integrationSkipReason }, async () => {
+  const seeded = await seedContentScenario();
+  const token = signAccessToken(seeded.userId);
+
+  const query = new URLSearchParams();
+  query.set('likedOnly', 'true');
+  query.set('sort', 'latest');
+  query.set('page', '1');
+  query.set('size', '24');
+
+  const response = await handleArtworksRequest(
+    createEvent('/v1/artworks', query.toString(), token),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+  const body = JSON.parse(response.body as string);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(body.data.total, 1);
+  assert.deepEqual(body.data.artworks.map((artwork: { id: number }) => artwork.id), [
+    seeded.artworkIds.spaceWalk,
+  ]);
+  assert.ok(body.data.artworks.every((artwork: { liked: boolean }) => artwork.liked === true));
+});
+
+// 작품 목록 API는 likedOnly와 기존 필터를 함께 적용할 수 있어야 한다.
+test('artworks list endpoint combines likedOnly with place, artistType, and festivalYear filters', { skip: integrationSkipReason }, async () => {
+  const seeded = await seedContentScenario();
+  const token = signAccessToken(seeded.userId);
+
+  const query = new URLSearchParams();
+  query.append('placeId', String(seeded.placeIds.yeongildae));
+  query.append('artistType', 'COMPANY');
+  query.append('festivalYear', '2024');
+  query.set('likedOnly', 'true');
+  query.set('sort', 'latest');
+  query.set('page', '1');
+  query.set('size', '24');
+
+  const response = await handleArtworksRequest(
+    createEvent('/v1/artworks', query.toString(), token),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+  const body = JSON.parse(response.body as string);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(body.data.total, 1);
+  assert.deepEqual(body.data.artworks.map((artwork: { id: number }) => artwork.id), [
+    seeded.artworkIds.spaceWalk,
+  ]);
+  assert.equal(body.data.artworks[0].liked, true);
+});
+
 // 작품 상세 API는 이미지, 축제 연도, liked 상태를 함께 반환해야 한다.
 test('artwork detail endpoint returns images, festival years, and liked state', { skip: integrationSkipReason }, async () => {
   const seeded = await seedContentScenario();

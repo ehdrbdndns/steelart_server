@@ -181,6 +181,92 @@ test('artworks handler returns list response for GET /v1/artworks', async () => 
   assert.equal(JSON.parse(response.body as string).data.artworks[0].address, '경북 포항시 영일대');
 });
 
+// 작품 목록 핸들러는 title 정렬과 lang, likedOnly 파라미터를 그대로 service에 전달해야 한다.
+test('artworks handler forwards title sort, lang, and likedOnly to service', async () => {
+  applyServerTestEnv();
+  const token = signAccessToken(1, {
+    secret: 'test-secret',
+  });
+  let capturedInput: unknown;
+
+  const response = await handleArtworksRequest(
+    createEvent({
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      rawQueryString: 'artistType=COMPANY&festivalYear=2024&lang=en&likedOnly=true&page=1&placeId=1&size=24&sort=title',
+    }),
+    {} as never,
+    createArtworksServiceStub({
+      async listArtworks(input) {
+        capturedInput = input;
+
+        return {
+          artworks: [],
+          page: 1,
+          size: 24,
+          total: 0,
+        };
+      },
+    }),
+  ) as APIGatewayProxyStructuredResultV2;
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(capturedInput, {
+    artistTypes: ['COMPANY'],
+    festivalYears: ['2024'],
+    lang: 'en',
+    likedOnly: true,
+    page: 1,
+    placeIds: [1],
+    size: 24,
+    sort: 'title',
+  });
+});
+
+// 작품 목록 핸들러는 lang 기본값과 likedOnly=false 문자열 파싱을 올바르게 적용해야 한다.
+test('artworks handler applies default lang and parses likedOnly=false', async () => {
+  applyServerTestEnv();
+  const token = signAccessToken(1, {
+    secret: 'test-secret',
+  });
+  let capturedInput: unknown;
+
+  const response = await handleArtworksRequest(
+    createEvent({
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      rawQueryString: 'likedOnly=false&page=1&size=24&sort=title',
+    }),
+    {} as never,
+    createArtworksServiceStub({
+      async listArtworks(input) {
+        capturedInput = input;
+
+        return {
+          artworks: [],
+          page: 1,
+          size: 24,
+          total: 0,
+        };
+      },
+    }),
+  ) as APIGatewayProxyStructuredResultV2;
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(capturedInput, {
+    artistTypes: [],
+    festivalYears: [],
+    lang: 'ko',
+    likedOnly: false,
+    page: 1,
+    placeIds: [],
+    size: 24,
+    sort: 'title',
+  });
+});
+
 // 작품 상세 핸들러는 path id를 읽어 상세 응답을 반환해야 한다.
 test('artworks handler returns detail response for GET /v1/artworks/{id}', async () => {
   applyServerTestEnv();
