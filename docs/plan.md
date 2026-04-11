@@ -33,6 +33,17 @@ GET /v1/artworks?sort=latest|oldest|title&lang=ko|en&placeId=1&artistType=COMPAN
 }
 ```
 
+## 현재 상태
+- 전체 단계 완료
+- 구현 완료:
+  - `sort=title`
+  - `lang=ko|en`
+  - `likedOnly=true`
+- 검증 완료:
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `set -a && source /Users/donggyunyang/code/steelart/steelart_server/.env.integration && set +a && pnpm test:integration`
+
 ## 고정 결정
 - 새 API를 만들지 않는다.
 - 기존 `GET /v1/artworks`를 확장한다.
@@ -74,13 +85,13 @@ ORDER BY a.title_en ASC, a.id ASC
 
 ## 단계별 구현 계획
 
-### 0단계. 브랜치 / 작업 기준 고정
+### 0단계. 브랜치 / 작업 기준 고정 [완료]
 - 현재 작업 브랜치를 확인한다.
 - 구현 전 기준 동작을 확인한다.
   - `GET /v1/artworks`는 현재 `sort=latest|oldest`만 허용
   - `likedOnly`는 아직 schema/handler/repository 어디에도 없음
 
-### 1단계. 타입 정의 확장
+### 1단계. 타입 정의 확장 [완료]
 - 파일: [src/domains/artworks/types.ts](/Users/donggyunyang/code/steelart/steelart_server/src/domains/artworks/types.ts)
 
 #### 변경 내용
@@ -106,7 +117,7 @@ export interface ArtworkListInput {
 }
 ```
 
-### 2단계. query schema 확장
+### 2단계. query schema 확장 [완료]
 - 파일: [src/domains/artworks/schemas.ts](/Users/donggyunyang/code/steelart/steelart_server/src/domains/artworks/schemas.ts)
 
 #### 변경 내용
@@ -116,11 +127,21 @@ export interface ArtworkListInput {
 
 #### 구현 예시
 ```ts
+const booleanQuerySchema = z.preprocess((value) => {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+  }
+  return value;
+}, z.boolean().default(false));
+
 export const artworksListQuerySchema = z.object({
   artistType: z.array(z.enum(ARTIST_TYPE_VALUES)).default([]),
   festivalYear: festivalYearArraySchema,
   lang: z.enum(['ko', 'en']).default('ko'),
-  likedOnly: z.coerce.boolean().default(false),
+  likedOnly: booleanQuerySchema,
   page: z.coerce.number().int().positive().default(1),
   placeId: positiveIntegerArraySchema,
   size: z.coerce.number().int().positive().max(100).default(24),
@@ -132,9 +153,9 @@ export const artworksListQuerySchema = z.object({
 - `lang`은 title 정렬에만 의미가 있다.
 - `lang`이 없으면 기본값은 `ko`다.
 - `likedOnly`는 `request.getQuery('likedOnly')`에서 문자열로 들어온다.
-- `z.coerce.boolean()`을 쓰면 `"true"` / `"false"` 문자열도 처리 가능하다.
+- `"true"` / `"false"` 문자열은 명시적으로 boolean으로 변환해야 한다.
 
-### 3단계. handler에서 새 query 파라미터 읽기
+### 3단계. handler에서 새 query 파라미터 읽기 [완료]
 - 파일: [src/lambdas/artworks/handler.ts](/Users/donggyunyang/code/steelart/steelart_server/src/lambdas/artworks/handler.ts)
 
 #### 현재 코드
@@ -180,7 +201,7 @@ const result = await service.listArtworks({
 }, auth.userId);
 ```
 
-### 4단계. service 전달 구조 확장
+### 4단계. service 전달 구조 확장 [완료]
 - 파일: [src/domains/artworks/service.ts](/Users/donggyunyang/code/steelart/steelart_server/src/domains/artworks/service.ts)
 
 #### 변경 내용
@@ -191,7 +212,7 @@ const result = await service.listArtworks({
 - 별도 비즈니스 로직 추가는 필요 없음
 - `lang`, `likedOnly`는 handler와 repository 사이 계약 확장으로 처리
 
-### 5단계. repository where / order by 로직 확장
+### 5단계. repository where / order by 로직 확장 [완료]
 - 파일: [src/domains/artworks/repository.ts](/Users/donggyunyang/code/steelart/steelart_server/src/domains/artworks/repository.ts)
 
 #### 5-1. `buildArtworkSortClause()` 확장
@@ -254,7 +275,7 @@ if (input.likedOnly) {
 - list 쿼리에서만 `lang`이 정렬 기준 컬럼 선택에 사용된다.
 - count 쿼리에는 `lang`이 직접 영향을 주지 않는다.
 
-### 6단계. unit test 보강
+### 6단계. unit test 보강 [완료]
 - 파일: [tests/unit/artworks/artworks-handler.test.ts](/Users/donggyunyang/code/steelart/steelart_server/tests/unit/artworks/artworks-handler.test.ts)
 
 #### 추가해야 할 테스트
@@ -273,7 +294,7 @@ if (input.likedOnly) {
 rawQueryString: 'artistType=COMPANY&lang=en&likedOnly=true&page=1&size=24&sort=title'
 ```
 
-### 7단계. integration test 보강
+### 7단계. integration test 보강 [완료]
 - 파일: [tests/integration/content/content-read.integration.test.ts](/Users/donggyunyang/code/steelart/steelart_server/tests/integration/content/content-read.integration.test.ts)
 
 #### 추가해야 할 시나리오
@@ -297,7 +318,7 @@ rawQueryString: 'artistType=COMPANY&lang=en&likedOnly=true&page=1&size=24&sort=t
 - `total` 값도 결과 개수와 일치하는지 확인
 - `likedOnly=true` 결과의 모든 item이 `liked === true`인지 확인
 
-### 8단계. 루트 API 문서 동기화
+### 8단계. 루트 API 문서 동기화 [완료]
 - 파일: [/Users/donggyunyang/code/steelart/STEELART_SERVER_API_DRAFT.md](/Users/donggyunyang/code/steelart/STEELART_SERVER_API_DRAFT.md)
 
 #### 변경 내용
@@ -354,7 +375,7 @@ set -a && source .env.integration && set +a && pnpm test:integration
 - 원인:
   - query 문자열이 `"true"`, `"false"`로 들어옴
 - 대응:
-  - schema에서 coercion 사용
+  - schema에서 문자열 boolean을 명시적으로 파싱
   - handler unit test로 parse 결과를 고정
 
 ## 완료 기준

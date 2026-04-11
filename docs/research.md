@@ -1,7 +1,7 @@
-# `/v1/artworks` 정렬/좋아요 필터 확장 리서치
+# `/v1/artworks` 정렬/언어/좋아요 필터 확장 리서치
 
 ## 문서 목적
-- `GET /v1/artworks`에 `title` 정렬을 추가하고, `likedOnly` 필터를 추가하기 위해 필요한 현재 계약, 코드 구조, DB 기준을 정리한다.
+- `GET /v1/artworks`에 `title` 정렬을 추가하고, `lang` 파라미터에 따라 정렬 기준 언어를 바꾸며, `likedOnly` 필터를 추가하기 위해 필요한 현재 계약, 코드 구조, DB 기준을 정리한다.
 - 이번 문서는 작품 아카이브 목록 API 확장만 다루며, 상세 조회/좋아요 write API 자체 변경은 범위에서 제외한다.
 
 ## 조사 기준
@@ -17,8 +17,9 @@
 - [tests/integration/content/content-read.integration.test.ts](/Users/donggyunyang/code/steelart/steelart_server/tests/integration/content/content-read.integration.test.ts)
 
 ## 변경 목표
-- 기존 `GET /v1/artworks`에 아래 두 기능을 추가한다.
+- 기존 `GET /v1/artworks`에 아래 기능을 추가한다.
   - `sort=title`
+  - `lang=ko|en`
   - `likedOnly=true`
 - 기존 필터와 페이지네이션은 그대로 유지한다.
   - `placeId`
@@ -36,20 +37,22 @@
 ## 현재 루트 API 계약
 
 ### 현재 문서 상태
-- [STEELART_SERVER_API_DRAFT.md](/Users/donggyunyang/code/steelart/STEELART_SERVER_API_DRAFT.md)의 `GET /v1/artworks`는 현재 아래만 명시한다.
+- [STEELART_SERVER_API_DRAFT.md](/Users/donggyunyang/code/steelart/STEELART_SERVER_API_DRAFT.md)의 `GET /v1/artworks`는 현재 아래를 명시한다.
   - `sort=latest|oldest`
   - `placeId=1&placeId=2`
   - `artistType=COMPANY&artistType=INDIVIDUAL`
   - `festivalYear=2023&festivalYear=2024`
   - `page`
   - `size`
-- 즉 `title` 정렬과 `likedOnly`는 아직 계약에 없다.
+- 즉 `title` 정렬, `lang`, `likedOnly`는 아직 계약에 없다.
 
 ### 이번 변경으로 문서에 추가되어야 할 것
 - `sort=latest|oldest|title`
+- `lang=ko|en`
 - `likedOnly=true`
 - `likedOnly`는 선택적 boolean이며 `true`일 때만 적용된다는 점
-- `likedOnly`를 써도 기존 `liked: boolean` 응답 필드는 계속 유지된다는 점
+- `lang`은 선택적이며 기본값이 `ko`라는 점
+- `sort=title`일 때만 `lang`에 따라 정렬 기준 컬럼이 달라진다는 점
 
 ## 앱 관점에서 필요한 이유
 
@@ -70,8 +73,9 @@
 
 ### 이번 추가 요구사항 해석
 - `title` 정렬은 작품명 순 정렬을 직접 지원하려는 요구다.
+- `lang`은 title 정렬 시 현재 UI 언어에 맞는 제목 컬럼을 선택하기 위한 파라미터다.
 - `likedOnly`는 사용자가 좋아요한 작품만 별도로 좁혀보고 싶은 요구다.
-- 둘 다 작품 아카이브 결과 목록을 좁히거나 정렬하는 규칙이므로 `GET /v1/artworks`에 붙이는 것이 자연스럽다.
+- 셋 다 작품 아카이브 결과 목록을 좁히거나 정렬하는 규칙이므로 `GET /v1/artworks`에 붙이는 것이 자연스럽다.
 
 ## 현재 구현 상태
 
@@ -84,7 +88,7 @@
   - `placeId`
   - `size`
   - `sort`
-- `likedOnly`는 아직 읽지 않는다.
+- `lang`, `likedOnly`는 아직 읽지 않는다.
 
 ### schema
 - [src/domains/artworks/schemas.ts](/Users/donggyunyang/code/steelart/steelart_server/src/domains/artworks/schemas.ts)
@@ -101,6 +105,7 @@
 ```
 - 즉 아래가 아직 없다.
   - `sort='title'`
+  - `lang: 'ko' | 'en'`
   - `likedOnly: boolean`
 
 ### type
@@ -109,7 +114,7 @@
 ```ts
 export const ARTWORK_SORT_VALUES = ['latest', 'oldest'] as const;
 ```
-- `ArtworkListInput`도 아직 `likedOnly`를 가지지 않는다.
+- `ArtworkListInput`도 아직 `lang`, `likedOnly`를 가지지 않는다.
 
 ### repository
 - [src/domains/artworks/repository.ts](/Users/donggyunyang/code/steelart/steelart_server/src/domains/artworks/repository.ts)
@@ -135,7 +140,7 @@ CASE WHEN al.user_id IS NULL THEN 0 ELSE 1 END AS liked
 ```sql
 ORDER BY COALESCE(festivals.latest_festival_year, festivals.oldest_festival_year, a.production_year, 0) DESC, a.id DESC
 ```
-- `title` 정렬은 아직 없다.
+- `title` 정렬과 `lang` 분기는 아직 없다.
 
 ## `likedOnly` 구현에 필요한 DB 기준
 
@@ -163,7 +168,7 @@ ORDER BY COALESCE(festivals.latest_festival_year, festivals.oldest_festival_year
 
 ### 권장 쿼리 파라미터
 ```http
-GET /v1/artworks?sort=latest|oldest|title&placeId=1&artistType=COMPANY&festivalYear=2024&likedOnly=true&page=1&size=24
+GET /v1/artworks?sort=latest|oldest|title&lang=ko|en&placeId=1&artistType=COMPANY&festivalYear=2024&likedOnly=true&page=1&size=24
 ```
 
 ### 권장 의미
@@ -171,6 +176,10 @@ GET /v1/artworks?sort=latest|oldest|title&placeId=1&artistType=COMPANY&festivalY
   - `latest`: 최신 축제 연도/제작 연도 우선
   - `oldest`: 오래된 축제 연도/제작 연도 우선
   - `title`: 작품명 오름차순
+- `lang`
+  - `ko`: `title_ko` 기준 정렬
+  - `en`: `title_en` 기준 정렬
+  - 파라미터 없음: `ko`
 - `likedOnly`
   - 파라미터 없음: 필터 미적용
   - `false`: 필터 미적용으로 취급
@@ -179,14 +188,18 @@ GET /v1/artworks?sort=latest|oldest|title&placeId=1&artistType=COMPANY&festivalY
 ## SQL 관점 권장안
 
 ### 1. `title` 정렬
-- 지금 응답은 bilingual이지만, 정렬 기준은 한국어 우선이 자연스럽다.
+- `title` 정렬은 `lang`에 따라 정렬 기준 컬럼을 다르게 두는 것이 자연스럽다.
 - 권장 SQL:
 ```sql
-ORDER BY a.title_ko ASC, a.title_en ASC, a.id ASC
+-- lang=ko
+ORDER BY a.title_ko ASC, a.id ASC
+
+-- lang=en
+ORDER BY a.title_en ASC, a.id ASC
 ```
 - 이유:
-  - 기존 search도 `title_ko`, `title_en`, `id` 순으로 title 정렬을 구현하고 있다.
-  - 같은 제목일 때 `id`까지 넣어 정렬 안정성을 확보할 수 있다.
+  - 아카이브 탭의 현재 표시 언어에 맞는 제목 정렬이 UX에 맞다.
+  - `id`를 보조 정렬 키로 두면 정렬 안정성을 확보할 수 있다.
 
 ### 2. `likedOnly`
 - 응답용 `LEFT JOIN artwork_likes al ...`는 그대로 유지하되, where에 아래를 추가하는 것이 가장 자연스럽다.
@@ -218,10 +231,11 @@ WHERE a.deleted_at IS NULL
   - `COUNT(*) AS total`
   - 실제 목록 query
 - `likedOnly`가 추가되면 두 쿼리에 동일한 where 조건을 넣어야 한다.
+- `lang`은 count 쿼리에는 직접 영향이 없고, list 쿼리의 `ORDER BY`에만 영향을 준다.
 - 즉 변경은 아래 순서로 가는 것이 맞다.
   1. `whereClauses`에 `likedOnly` 분기 추가
-  2. `filterParams`와 `listParams` 순서 재정리
-  3. count/list 쿼리 모두 같은 조건 사용
+  2. `buildArtworkSortClause(sort, lang)` 형태로 정렬 함수 시그니처 확장
+  3. count/list 쿼리 모두 같은 where 조건 사용
 
 ## 변경 대상 파일
 
@@ -231,31 +245,36 @@ WHERE a.deleted_at IS NULL
   - `ArtworkListInput`
 - [src/domains/artworks/schemas.ts](/Users/donggyunyang/code/steelart/steelart_server/src/domains/artworks/schemas.ts)
   - `sort`에 `title` 추가
+  - `lang` 추가
   - `likedOnly` 추가
 - [src/lambdas/artworks/handler.ts](/Users/donggyunyang/code/steelart/steelart_server/src/lambdas/artworks/handler.ts)
-  - query parsing에 `likedOnly` 추가
+  - query parsing에 `lang`, `likedOnly` 추가
 - [src/domains/artworks/repository.ts](/Users/donggyunyang/code/steelart/steelart_server/src/domains/artworks/repository.ts)
-  - `buildArtworkSortClause()`에 `title`
+  - `buildArtworkSortClause()`에 `title`, `lang`
   - `listArtworks()` where에 `likedOnly`
 - [src/domains/artworks/service.ts](/Users/donggyunyang/code/steelart/steelart_server/src/domains/artworks/service.ts)
   - input 전달만 추가
 
 ### 문서
 - [/Users/donggyunyang/code/steelart/STEELART_SERVER_API_DRAFT.md](/Users/donggyunyang/code/steelart/STEELART_SERVER_API_DRAFT.md)
-- 필요하면 [docs/plan.md](/Users/donggyunyang/code/steelart/steelart_server/docs/plan.md)
+- [docs/plan.md](/Users/donggyunyang/code/steelart/steelart_server/docs/plan.md)
 
 ## 테스트 관점
 
 ### unit test에서 추가되어야 할 것
 - [tests/unit/artworks/artworks-handler.test.ts](/Users/donggyunyang/code/steelart/steelart_server/tests/unit/artworks/artworks-handler.test.ts)
   - `sort=title`
+  - `lang=ko|en`
   - `likedOnly=true`
-  - 두 값이 parse되어 service로 전달되는지 확인
-- schema test가 없다면 artworks query schema용 단위 테스트 추가 검토
+  - 기본값 `lang=ko`, `likedOnly=false`
+  - handler가 parse 결과를 service로 그대로 전달하는지 확인
+- [tests/unit/artworks/artworks-schemas.test.ts](/Users/donggyunyang/code/steelart/steelart_server/tests/unit/artworks/artworks-schemas.test.ts)
+  - `lang`, `likedOnly`, `title` 정렬 파싱 확인
 
 ### integration test에서 추가되어야 할 것
 - [tests/integration/content/content-read.integration.test.ts](/Users/donggyunyang/code/steelart/steelart_server/tests/integration/content/content-read.integration.test.ts)
-  - `sort=title`일 때 제목순 정렬 확인
+  - `sort=title&lang=ko`일 때 한국어 제목순 정렬 확인
+  - `sort=title&lang=en`일 때 영어 제목순 정렬 확인
   - `likedOnly=true`일 때 좋아요한 작품만 남는지 확인
   - `likedOnly=true` + 기존 `placeId` / `artistType` / `festivalYear`와 함께 동작하는지 확인
 
@@ -265,15 +284,29 @@ WHERE a.deleted_at IS NULL
 - 낮음 ~ 중간
 - 기존 `GET /v1/artworks` 구조를 확장하는 정도다.
 
-### 리스크
-- `likedOnly` 파라미터를 count/list 양쪽에 동일하게 적용하지 않으면 `total`이 틀어질 수 있다.
-- `title` 정렬을 title_ko만 쓸지 title_en까지 같이 묶을지 합의가 필요하지만, 현재 repo 전체 흐름상 `title_ko ASC, title_en ASC, id ASC`가 가장 자연스럽다.
-- `artwork_likes`의 정확한 raw DDL은 루트 문서상 아직 inferred다. 다만 현재 write/read 구현과 integration test가 이미 이 테이블을 쓰고 있어서 실무상 blocker는 아니다.
+### 리스크 1. `likedOnly` count/list 불일치
+- 원인:
+  - count 쿼리와 list 쿼리에 조건이 다르게 적용될 경우
+- 대응:
+  - `whereClauses`와 `filterParams`를 공용으로 유지
+
+### 리스크 2. `title` 정렬의 언어 기준 혼동
+- 원인:
+  - `lang=ko|en`가 title 정렬에만 영향을 준다는 점이 문서화되지 않으면 오해가 생길 수 있다.
+- 대응:
+  - 루트 API 초안에 `sort=title`일 때만 `lang`이 의미가 있다는 점을 명시
+
+### 리스크 3. `likedOnly`의 boolean 파싱 오해
+- 원인:
+  - query 문자열이 `"true"`, `"false"`로 들어옴
+- 대응:
+  - schema에서 문자열 boolean을 명시적으로 파싱
+  - handler/schema unit test로 결과를 고정
 
 ## 최종 결론
-- `GET /v1/artworks`에 `sort=title`과 `likedOnly=true`를 추가하는 방향이 자연스럽다.
+- `GET /v1/artworks`에 `sort=title`, `lang=ko|en`, `likedOnly=true`를 추가하는 방향이 자연스럽다.
 - 별도 새 API를 만들 필요는 없다.
 - 필요한 수정은 handler / schema / types / repository / 테스트 / 루트 API 문서까지 전부 한 세트다.
 - 구현 시 가장 중요한 포인트는 아래 두 가지다.
-  - `title` 정렬은 `title_ko`, `title_en`, `id` 기준으로 안정적으로 정렬
+  - `title` 정렬은 `lang`에 따라 `title_ko` 또는 `title_en`, `id` 기준으로 정렬
   - `likedOnly`는 count/list 쿼리에 동일하게 적용
