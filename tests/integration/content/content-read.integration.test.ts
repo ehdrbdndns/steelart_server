@@ -714,8 +714,8 @@ test('search endpoint reuses artwork sort values for oldest pagination', { skip:
   assert.equal(body.data.last, true);
 });
 
-// 작품 검색 API는 title 정렬일 때 작품명을 기준으로 오름차순 정렬해야 한다.
-test('search endpoint sorts artwork matches by title', { skip: integrationSkipReason }, async () => {
+// 작품 검색 API는 title 정렬일 때 lang이 없으면 한국어 제목 기준으로 오름차순 정렬해야 한다.
+test('search endpoint sorts artwork matches by korean title by default', { skip: integrationSkipReason }, async () => {
   const seeded = await seedContentScenario();
   const token = signAccessToken(seeded.userId);
 
@@ -733,6 +733,30 @@ test('search endpoint sorts artwork matches by title', { skip: integrationSkipRe
   assert.deepEqual(body.data.artworks.map((artwork: { title_ko: string }) => artwork.title_ko), [
     '스페이스워크',
     '환호의 빛',
+  ]);
+  assert.equal(body.data.totalElements, 2);
+  assert.equal(body.data.last, true);
+});
+
+// 작품 검색 API는 title 정렬일 때 lang=en이면 영어 제목 기준으로 오름차순 정렬해야 한다.
+test('search endpoint sorts artwork matches by english title when lang is en', { skip: integrationSkipReason }, async () => {
+  const seeded = await seedContentScenario();
+  const token = signAccessToken(seeded.userId);
+
+  const response = await handleSearchRequest(
+    createEvent('/v1/search/artworks', 'q=포스아트&sort=title&lang=en&page=1&size=20', token),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+  const body = JSON.parse(response.body as string);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(body.data.artworks.map((artwork: { id: number }) => artwork.id), [
+    seeded.artworkIds.hwanho,
+    seeded.artworkIds.spaceWalk,
+  ]);
+  assert.deepEqual(body.data.artworks.map((artwork: { title_en: string }) => artwork.title_en), [
+    'Light of Hwanho',
+    'Space Walk',
   ]);
   assert.equal(body.data.totalElements, 2);
   assert.equal(body.data.last, true);
@@ -767,6 +791,111 @@ test('artworks list endpoint applies multi filters', { skip: integrationSkipReas
   assert.equal(body.data.artworks[0].thumbnail_image_height, 800);
 });
 
+// 작품 목록 API는 lang=ko일 때 한국어 제목 기준으로 정렬해야 한다.
+test('artworks list endpoint sorts by Korean title when sort=title and lang=ko', { skip: integrationSkipReason }, async () => {
+  const seeded = await seedContentScenario();
+  const token = signAccessToken(seeded.userId);
+
+  const query = new URLSearchParams();
+  query.set('sort', 'title');
+  query.set('lang', 'ko');
+  query.set('page', '1');
+  query.set('size', '24');
+
+  const response = await handleArtworksRequest(
+    createEvent('/v1/artworks', query.toString(), token),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+  const body = JSON.parse(response.body as string);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(body.data.artworks.map((artwork: { id: number }) => artwork.id), [
+    seeded.artworkIds.spaceWalk,
+    seeded.artworkIds.yeongilWind,
+    seeded.artworkIds.hwanho,
+  ]);
+  assert.equal(body.data.total, 3);
+});
+
+// 작품 목록 API는 lang=en일 때 영어 제목 기준으로 정렬해야 한다.
+test('artworks list endpoint sorts by English title when sort=title and lang=en', { skip: integrationSkipReason }, async () => {
+  const seeded = await seedContentScenario();
+  const token = signAccessToken(seeded.userId);
+
+  const query = new URLSearchParams();
+  query.set('sort', 'title');
+  query.set('lang', 'en');
+  query.set('page', '1');
+  query.set('size', '24');
+
+  const response = await handleArtworksRequest(
+    createEvent('/v1/artworks', query.toString(), token),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+  const body = JSON.parse(response.body as string);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(body.data.artworks.map((artwork: { id: number }) => artwork.id), [
+    seeded.artworkIds.hwanho,
+    seeded.artworkIds.spaceWalk,
+    seeded.artworkIds.yeongilWind,
+  ]);
+  assert.equal(body.data.total, 3);
+});
+
+// 작품 목록 API는 likedOnly=true일 때 사용자가 좋아요한 작품만 반환해야 한다.
+test('artworks list endpoint applies likedOnly filter', { skip: integrationSkipReason }, async () => {
+  const seeded = await seedContentScenario();
+  const token = signAccessToken(seeded.userId);
+
+  const query = new URLSearchParams();
+  query.set('likedOnly', 'true');
+  query.set('sort', 'latest');
+  query.set('page', '1');
+  query.set('size', '24');
+
+  const response = await handleArtworksRequest(
+    createEvent('/v1/artworks', query.toString(), token),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+  const body = JSON.parse(response.body as string);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(body.data.total, 1);
+  assert.deepEqual(body.data.artworks.map((artwork: { id: number }) => artwork.id), [
+    seeded.artworkIds.spaceWalk,
+  ]);
+  assert.ok(body.data.artworks.every((artwork: { liked: boolean }) => artwork.liked === true));
+});
+
+// 작품 목록 API는 likedOnly와 기존 필터를 함께 적용할 수 있어야 한다.
+test('artworks list endpoint combines likedOnly with place, artistType, and festivalYear filters', { skip: integrationSkipReason }, async () => {
+  const seeded = await seedContentScenario();
+  const token = signAccessToken(seeded.userId);
+
+  const query = new URLSearchParams();
+  query.append('placeId', String(seeded.placeIds.yeongildae));
+  query.append('artistType', 'COMPANY');
+  query.append('festivalYear', '2024');
+  query.set('likedOnly', 'true');
+  query.set('sort', 'latest');
+  query.set('page', '1');
+  query.set('size', '24');
+
+  const response = await handleArtworksRequest(
+    createEvent('/v1/artworks', query.toString(), token),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+  const body = JSON.parse(response.body as string);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(body.data.total, 1);
+  assert.deepEqual(body.data.artworks.map((artwork: { id: number }) => artwork.id), [
+    seeded.artworkIds.spaceWalk,
+  ]);
+  assert.equal(body.data.artworks[0].liked, true);
+});
+
 // 작품 상세 API는 이미지, 축제 연도, liked 상태를 함께 반환해야 한다.
 test('artwork detail endpoint returns images, festival years, and liked state', { skip: integrationSkipReason }, async () => {
   const seeded = await seedContentScenario();
@@ -783,6 +912,8 @@ test('artwork detail endpoint returns images, festival years, and liked state', 
   assert.equal(body.data.liked, true);
   assert.deepEqual(body.data.festival_years, ['2024', '2023']);
   assert.equal(body.data.images.length, 2);
+  assert.equal(body.data.zone_name_ko, '환호');
+  assert.equal(body.data.zone_name_en, 'Hwanho');
 });
 
 // 작품 필터 API는 zone 아래에 place 목록을 묶어 반환하고 축제 연도 목록도 함께 내려야 한다.
