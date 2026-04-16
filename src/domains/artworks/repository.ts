@@ -75,6 +75,8 @@ interface ArtworkDetailRow extends RowDataPacket {
   title_en: string;
   title_ko: string;
   zone_id: number | null;
+  zone_name_en: string | null;
+  zone_name_ko: string | null;
 }
 
 interface ArtworkImageRow extends RowDataPacket {
@@ -191,6 +193,8 @@ function mapArtworkDetailRow(
     title_en: row.title_en,
     title_ko: row.title_ko,
     zone_id: row.zone_id,
+    zone_name_en: row.zone_name_en,
+    zone_name_ko: row.zone_name_ko,
   };
 }
 
@@ -265,10 +269,13 @@ export const artworksRepository: ArtworksRepository = {
             CAST(p.lat AS DOUBLE) AS lat,
             CAST(p.lng AS DOUBLE) AS lng,
             p.zone_id AS zone_id,
+            z.name_ko AS zone_name_ko,
+            z.name_en AS zone_name_en,
             CASE WHEN al.user_id IS NULL THEN 0 ELSE 1 END AS liked
          FROM artworks a
          INNER JOIN artists ar ON ar.id = a.artist_id
          INNER JOIN places p ON p.id = a.place_id
+         LEFT JOIN zones z ON z.id = p.zone_id
          LEFT JOIN artwork_likes al ON al.artwork_id = a.id AND al.user_id = ?
          WHERE a.deleted_at IS NULL
            AND ar.deleted_at IS NULL

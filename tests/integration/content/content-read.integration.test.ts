@@ -912,6 +912,8 @@ test('artwork detail endpoint returns images, festival years, and liked state', 
   assert.equal(body.data.liked, true);
   assert.deepEqual(body.data.festival_years, ['2024', '2023']);
   assert.equal(body.data.images.length, 2);
+  assert.equal(body.data.zone_name_ko, '환호');
+  assert.equal(body.data.zone_name_en, 'Hwanho');
 });
 
 // 작품 필터 API는 zone 아래에 place 목록을 묶어 반환하고 축제 연도 목록도 함께 내려야 한다.

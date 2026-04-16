@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  mapArtworkDetail,
   mapArtworkFiltersResponse,
   mapArtworkLikeResponse,
 } from '../../../src/domains/artworks/mapper.js';
@@ -49,6 +50,61 @@ test('artworks mapper builds bilingual filter response', () => {
         ],
       },
     ],
+  });
+});
+
+// 작품 상세 매퍼는 권역 id와 한영 권역명을 그대로 보존해야 한다.
+test('artworks mapper builds detail response with zone names', () => {
+  assert.deepEqual(mapArtworkDetail({
+    address: '경북 포항시 환호공원',
+    artist_name_en: 'Artist One',
+    artist_name_ko: '작가 하나',
+    audio_url_en: null,
+    audio_url_ko: null,
+    category: 'STEEL_ART',
+    description_en: 'desc',
+    description_ko: '설명',
+    festival_years: ['2024', '2023'],
+    id: 12,
+    images: [],
+    lat: 36.1,
+    liked: true,
+    lng: 129.3,
+    place_name_en: 'Space Walk',
+    place_name_ko: '스페이스워크',
+    production_year: 2024,
+    size_text_en: null,
+    size_text_ko: null,
+    title_en: 'Space Walk',
+    title_ko: '스페이스워크',
+    zone_id: 2,
+    zone_name_en: 'Hwanho',
+    zone_name_ko: '환호',
+  }), {
+    address: '경북 포항시 환호공원',
+    artist_name_en: 'Artist One',
+    artist_name_ko: '작가 하나',
+    audio_url_en: null,
+    audio_url_ko: null,
+    category: 'STEEL_ART',
+    description_en: 'desc',
+    description_ko: '설명',
+    festival_years: ['2024', '2023'],
+    id: 12,
+    images: [],
+    lat: 36.1,
+    liked: true,
+    lng: 129.3,
+    place_name_en: 'Space Walk',
+    place_name_ko: '스페이스워크',
+    production_year: 2024,
+    size_text_en: null,
+    size_text_ko: null,
+    title_en: 'Space Walk',
+    title_ko: '스페이스워크',
+    zone_id: 2,
+    zone_name_en: 'Hwanho',
+    zone_name_ko: '환호',
   });
 });
 

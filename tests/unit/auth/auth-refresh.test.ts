@@ -70,7 +70,7 @@ test('refreshAccessToken returns new access token for valid refresh token', asyn
     async findRefreshToken() {
       return {
         created_at: new Date('2026-03-14T00:00:00.000Z'),
-        expires_at: new Date('2026-04-13T00:00:00.000Z'),
+        expires_at: new Date('2099-04-13T00:00:00.000Z'),
         id: 10,
         refresh_token: 'refresh-token',
         revoked_at: null,
