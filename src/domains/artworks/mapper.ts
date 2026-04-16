@@ -108,6 +108,8 @@ export function mapArtworkDetail(detail: ArtworkDetail): ArtworkDetail {
     title_en: detail.title_en,
     title_ko: detail.title_ko,
     zone_id: detail.zone_id,
+    zone_name_en: detail.zone_name_en,
+    zone_name_ko: detail.zone_name_ko,
   };
 }
 

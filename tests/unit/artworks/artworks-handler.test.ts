@@ -80,6 +80,8 @@ function createArtworksServiceStub(overrides: Partial<ArtworksService> = {}): Ar
         title_en: 'Space Walk',
         title_ko: '스페이스워크',
         zone_id: 1,
+        zone_name_en: 'Yeongil',
+        zone_name_ko: '영일',
       };
     },
     async getArtworkFilters() {
@@ -292,6 +294,8 @@ test('artworks handler returns detail response for GET /v1/artworks/{id}', async
 
   assert.equal(response.statusCode, 200);
   assert.equal(JSON.parse(response.body as string).data.id, 12);
+  assert.equal(JSON.parse(response.body as string).data.zone_name_ko, '영일');
+  assert.equal(JSON.parse(response.body as string).data.zone_name_en, 'Yeongil');
 });
 
 // 작품 필터 핸들러는 장소와 축제 연도 필터 목록을 반환해야 한다.

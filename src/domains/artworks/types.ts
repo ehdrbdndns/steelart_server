@@ -88,6 +88,8 @@ export interface ArtworkDetail {
   title_en: string;
   title_ko: string;
   zone_id: number | null;
+  zone_name_en: string | null;
+  zone_name_ko: string | null;
 }
 
 export interface PlaceFilterOption {
