@@ -298,19 +298,47 @@ Resources:
       CodeUri: ./
       Handler: src/lambdas/courses/handler.handler
       Events:
-        CoursesBaseRoute:
+        CoursesCreateRoute:
           Type: HttpApi
           Properties:
             ApiId: !Ref SteelArtHttpApi
             Method: ANY
             Path: /v1/courses
             PayloadFormatVersion: '2.0'
-        CoursesProxyRoute:
+        CoursesRecommendedRoute:
           Type: HttpApi
           Properties:
             ApiId: !Ref SteelArtHttpApi
             Method: ANY
-            Path: /v1/courses/{proxy+}
+            Path: /v1/courses/recommended
+            PayloadFormatVersion: '2.0'
+        CoursesMineRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v1/courses/mine
+            PayloadFormatVersion: '2.0'
+        CoursesDetailRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v1/courses/{courseId}
+            PayloadFormatVersion: '2.0'
+        CoursesLikeRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v1/courses/{courseId}/like
+            PayloadFormatVersion: '2.0'
+        CoursesCheckinRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v1/courses/{courseId}/checkins
             PayloadFormatVersion: '2.0'
     Metadata:
       BuildMethod: esbuild
