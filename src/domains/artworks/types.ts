@@ -80,6 +80,7 @@ export interface ArtworkDetail {
   lat: number;
   liked: boolean;
   lng: number;
+  material: string | null;
   place_name_en: string;
   place_name_ko: string;
   production_year: number | null;

@@ -67,6 +67,7 @@ interface ArtworkDetailRow extends RowDataPacket {
   lat: number;
   liked: number | boolean;
   lng: number;
+  material: string | null;
   place_name_en: string;
   place_name_ko: string;
   production_year: number | null;
@@ -185,6 +186,7 @@ function mapArtworkDetailRow(
     lat: Number(row.lat),
     liked: row.liked === true || row.liked === 1,
     lng: Number(row.lng),
+    material: row.material,
     place_name_en: row.place_name_en,
     place_name_ko: row.place_name_ko,
     production_year: row.production_year,
@@ -259,6 +261,7 @@ export const artworksRepository: ArtworksRepository = {
             a.description_en,
             a.size_text_ko,
             a.size_text_en,
+            a.material,
             a.audio_url_ko,
             a.audio_url_en,
             a.category,
