@@ -72,6 +72,7 @@ function createArtworksServiceStub(overrides: Partial<ArtworksService> = {}): Ar
         lat: 36.1,
         liked: true,
         lng: 129.3,
+        material: 'steel',
         place_name_en: 'Space Walk',
         place_name_ko: '스페이스워크',
         production_year: 2024,
@@ -294,6 +295,7 @@ test('artworks handler returns detail response for GET /v1/artworks/{id}', async
 
   assert.equal(response.statusCode, 200);
   assert.equal(JSON.parse(response.body as string).data.id, 12);
+  assert.equal(JSON.parse(response.body as string).data.material, 'steel');
   assert.equal(JSON.parse(response.body as string).data.zone_name_ko, '영일');
   assert.equal(JSON.parse(response.body as string).data.zone_name_en, 'Yeongil');
 });

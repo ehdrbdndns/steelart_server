@@ -273,6 +273,7 @@ async function seedContentScenario(): Promise<SeededContentIds> {
         production_year,
         size_text_ko,
         size_text_en,
+        material,
         description_ko,
         description_en,
         audio_url_ko,
@@ -281,7 +282,7 @@ async function seedContentScenario(): Promise<SeededContentIds> {
         deleted_at,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
     [
       '스페이스워크',
       'Space Walk',
@@ -291,6 +292,7 @@ async function seedContentScenario(): Promise<SeededContentIds> {
       2021,
       '102m',
       '102m',
+      'steel',
       '영일대에 있는 대표 작품',
       'Representative steel artwork at Yeongildae',
       null,
@@ -310,6 +312,7 @@ async function seedContentScenario(): Promise<SeededContentIds> {
         production_year,
         size_text_ko,
         size_text_en,
+        material,
         description_ko,
         description_en,
         audio_url_ko,
@@ -318,7 +321,7 @@ async function seedContentScenario(): Promise<SeededContentIds> {
         deleted_at,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
     [
       '영일의 바람',
       'Wind of Yeongil',
@@ -326,6 +329,7 @@ async function seedContentScenario(): Promise<SeededContentIds> {
       yeongildaePlaceResult.insertId,
       'PUBLIC_ART',
       2020,
+      null,
       null,
       null,
       '영일대 바다를 바라보는 작품',
@@ -347,6 +351,7 @@ async function seedContentScenario(): Promise<SeededContentIds> {
         production_year,
         size_text_ko,
         size_text_en,
+        material,
         description_ko,
         description_en,
         audio_url_ko,
@@ -355,7 +360,7 @@ async function seedContentScenario(): Promise<SeededContentIds> {
         deleted_at,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
     [
       '환호의 빛',
       'Light of Hwanho',
@@ -365,6 +370,7 @@ async function seedContentScenario(): Promise<SeededContentIds> {
       2024,
       null,
       null,
+      'corten steel',
       '환호공원의 철 조형물',
       'Steel artwork in Hwanho park',
       null,
@@ -384,6 +390,7 @@ async function seedContentScenario(): Promise<SeededContentIds> {
         production_year,
         size_text_ko,
         size_text_en,
+        material,
         description_ko,
         description_en,
         audio_url_ko,
@@ -392,7 +399,7 @@ async function seedContentScenario(): Promise<SeededContentIds> {
         deleted_at,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       '영일 삭제 작품',
       'Deleted Yeongil Artwork',
@@ -400,6 +407,7 @@ async function seedContentScenario(): Promise<SeededContentIds> {
       yeongildaePlaceResult.insertId,
       'PUBLIC_ART',
       2019,
+      null,
       null,
       null,
       '삭제된 작품',
@@ -912,6 +920,7 @@ test('artwork detail endpoint returns images, festival years, and liked state', 
   assert.equal(body.data.liked, true);
   assert.deepEqual(body.data.festival_years, ['2024', '2023']);
   assert.equal(body.data.images.length, 2);
+  assert.equal(body.data.material, 'steel');
   assert.equal(body.data.zone_name_ko, '환호');
   assert.equal(body.data.zone_name_en, 'Hwanho');
 });

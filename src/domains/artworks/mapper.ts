@@ -100,6 +100,7 @@ export function mapArtworkDetail(detail: ArtworkDetail): ArtworkDetail {
     lat: detail.lat,
     liked: detail.liked,
     lng: detail.lng,
+    material: detail.material,
     place_name_en: detail.place_name_en,
     place_name_ko: detail.place_name_ko,
     production_year: detail.production_year,
