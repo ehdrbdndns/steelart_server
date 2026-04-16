@@ -77,6 +77,7 @@ export async function resetIntegrationDatabase(): Promise<void> {
   const pool = getPool();
 
   await pool.execute('DELETE FROM course_checkins');
+  await pool.execute('DELETE FROM course_likes');
   await pool.execute('DELETE FROM user_refresh_tokens');
   await pool.execute('DELETE FROM user_auth_providers');
   await pool.execute('DELETE FROM artwork_likes');
