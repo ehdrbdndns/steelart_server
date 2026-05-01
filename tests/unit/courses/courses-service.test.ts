@@ -33,10 +33,13 @@ function createCoursesRepositoryStub(
         is_official: true,
         items: [],
         liked: false,
-        stamped: false,
+        stampProgress: { checkedInCount: 0, totalCount: 0 },
         title_en: 'Course',
         title_ko: '코스',
       };
+    },
+    async findCourseStampProgress() {
+      return { checkedInCount: 1, totalCount: 2 };
     },
     async findCourseExists() {
       return true;
@@ -192,8 +195,13 @@ test('courses service rejects create when artwork is inactive', async () => {
 });
 
 test('courses service rejects check-in for unofficial course', async () => {
+  const calls: string[] = [];
   const service = createCoursesService({
     coursesRepository: createCoursesRepositoryStub({
+      async findCourseStampProgress() {
+        calls.push('progress');
+        return { checkedInCount: 1, totalCount: 2 };
+      },
       async findCourseRecord(courseId) {
         return {
           created_by_user_id: 7,
@@ -212,11 +220,17 @@ test('courses service rejects check-in for unofficial course', async () => {
     }, 7),
     (error: unknown) => error instanceof AppError && error.code === 'FORBIDDEN',
   );
+  assert.deepEqual(calls, []);
 });
 
 test('courses service rejects duplicate check-in', async () => {
+  const calls: string[] = [];
   const service = createCoursesService({
     coursesRepository: createCoursesRepositoryStub({
+      async findCourseStampProgress() {
+        calls.push('progress');
+        return { checkedInCount: 1, totalCount: 2 };
+      },
       async findCourseCheckinTarget() {
         return {
           alreadyCheckedIn: true,
@@ -242,11 +256,17 @@ test('courses service rejects duplicate check-in', async () => {
     }, 7),
     (error: unknown) => error instanceof AppError && error.code === 'CONFLICT',
   );
+  assert.deepEqual(calls, []);
 });
 
 test('courses service rejects check-in outside the allowed radius', async () => {
+  const calls: string[] = [];
   const service = createCoursesService({
     coursesRepository: createCoursesRepositoryStub({
+      async findCourseStampProgress() {
+        calls.push('progress');
+        return { checkedInCount: 1, totalCount: 2 };
+      },
       async findCourseCheckinTarget() {
         return {
           alreadyCheckedIn: false,
@@ -272,6 +292,7 @@ test('courses service rejects check-in outside the allowed radius', async () => 
     }, 7),
     (error: unknown) => error instanceof AppError && error.code === 'BAD_REQUEST',
   );
+  assert.deepEqual(calls, []);
 });
 
 test('courses service returns check-in success inside the allowed radius', async () => {
@@ -283,6 +304,16 @@ test('courses service returns check-in success inside the allowed radius', async
           args: [userId, courseId, courseItemId],
           step: 'insert',
         });
+      },
+      async findCourseStampProgress(courseId, userId) {
+        calls.push({
+          args: [courseId, userId],
+          step: 'progress',
+        });
+        return {
+          checkedInCount: 2,
+          totalCount: 2,
+        };
       },
       async findCourseCheckinTarget() {
         return {
@@ -311,12 +342,19 @@ test('courses service returns check-in success inside the allowed radius', async
     checkedIn: true,
     courseId: 12,
     courseItemId: 31,
-    stamped: true,
+    stampProgress: {
+      checkedInCount: 2,
+      totalCount: 2,
+    },
   });
   assert.deepEqual(calls, [
     {
       args: [7, 12, 31],
       step: 'insert',
+    },
+    {
+      args: [12, 7],
+      step: 'progress',
     },
   ]);
 });

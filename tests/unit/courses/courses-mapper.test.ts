@@ -17,7 +17,7 @@ test('courses mapper builds paginated list response', () => {
       id: 1,
       is_official: true,
       liked: true,
-      stamped: false,
+      stampProgress: { checkedInCount: 1, totalCount: 2 },
       start_place_name_en: 'Yeongildae',
       start_place_name_ko: '영일대',
       thumbnail_image_height: 800,
@@ -36,7 +36,7 @@ test('courses mapper builds paginated list response', () => {
         id: 1,
         is_official: true,
         liked: true,
-        stamped: false,
+        stampProgress: { checkedInCount: 1, totalCount: 2 },
         start_place_name_en: 'Yeongildae',
         start_place_name_ko: '영일대',
         thumbnail_image_height: 800,
@@ -60,10 +60,16 @@ test('courses mapper builds minimal like response', () => {
 });
 
 test('courses mapper builds minimal check-in response', () => {
-  assert.deepEqual(mapCourseCheckinResponse(12, 34), {
+  assert.deepEqual(mapCourseCheckinResponse(12, 34, {
+    checkedInCount: 2,
+    totalCount: 5,
+  }), {
     checkedIn: true,
     courseId: 12,
     courseItemId: 34,
-    stamped: true,
+    stampProgress: {
+      checkedInCount: 2,
+      totalCount: 5,
+    },
   });
 });

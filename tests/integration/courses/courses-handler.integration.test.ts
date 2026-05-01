@@ -387,9 +387,67 @@ if (integrationSkipReason) {
     assert.equal(body.data.total, 1);
     assert.equal(body.data.courses[0].id, seeded.officialCourseId);
     assert.equal(body.data.courses[0].liked, true);
-    assert.equal(body.data.courses[0].stamped, true);
+    assert.deepEqual(body.data.courses[0].stampProgress, {
+      checkedInCount: 1,
+      totalCount: 2,
+    });
+    assert.equal('stamped' in body.data.courses[0], false);
     assert.equal(body.data.courses[0].start_place_name_ko, '영일대');
     assert.equal(body.data.courses[0].end_place_name_ko, '환호공원');
+  });
+
+  test('recommended courses endpoint returns zero progress for a user without check-ins', async () => {
+    const token = signAccessToken(seeded.otherUserId);
+
+    const response = await handleCoursesRequest(
+      createEvent('/v1/courses/recommended', 'page=1&size=20', token),
+      {} as Context,
+    ) as APIGatewayProxyStructuredResultV2;
+    const body = JSON.parse(response.body as string);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(body.data.courses[0].id, seeded.officialCourseId);
+    assert.equal(body.data.courses[0].liked, false);
+    assert.deepEqual(body.data.courses[0].stampProgress, {
+      checkedInCount: 0,
+      totalCount: 2,
+    });
+    assert.equal('stamped' in body.data.courses[0], false);
+  });
+
+  test('course progress excludes soft-deleted artwork items', async () => {
+    const token = signAccessToken(seeded.userId);
+    await getPool().execute(
+      `UPDATE artworks
+       SET deleted_at = NOW()
+       WHERE id = ?`,
+      [seeded.artworkIds.two],
+    );
+
+    const listResponse = await handleCoursesRequest(
+      createEvent('/v1/courses/recommended', 'page=1&size=20', token),
+      {} as Context,
+    ) as APIGatewayProxyStructuredResultV2;
+    const listBody = JSON.parse(listResponse.body as string);
+    const detailResponse = await handleCoursesRequest(
+      createEvent(`/v1/courses/${seeded.officialCourseId}`, '', token),
+      {} as Context,
+    ) as APIGatewayProxyStructuredResultV2;
+    const detailBody = JSON.parse(detailResponse.body as string);
+
+    assert.equal(listResponse.statusCode, 200);
+    assert.deepEqual(listBody.data.courses[0].stampProgress, {
+      checkedInCount: 1,
+      totalCount: 1,
+    });
+    assert.equal(detailResponse.statusCode, 200);
+    assert.deepEqual(detailBody.data.stampProgress, {
+      checkedInCount: 1,
+      totalCount: 1,
+    });
+    assert.deepEqual(detailBody.data.items.map((item: { id: number }) => item.id), [
+      seeded.officialCourseItemIds.first,
+    ]);
   });
 
   test('my courses endpoint returns only authored custom courses', async () => {
@@ -405,7 +463,8 @@ if (integrationSkipReason) {
     assert.equal(body.data.total, 1);
     assert.equal(body.data.courses[0].id, seeded.myCourseId);
     assert.equal(body.data.courses[0].liked, true);
-    assert.equal(body.data.courses[0].stamped, false);
+    assert.equal(body.data.courses[0].stampProgress, null);
+    assert.equal('stamped' in body.data.courses[0], false);
   });
 
   test('course detail endpoint returns seq order, liked, editable, and checkedIn state', async () => {
@@ -421,6 +480,11 @@ if (integrationSkipReason) {
     assert.equal(body.data.id, seeded.officialCourseId);
     assert.equal(body.data.liked, true);
     assert.equal(body.data.editable, false);
+    assert.deepEqual(body.data.stampProgress, {
+      checkedInCount: 1,
+      totalCount: 2,
+    });
+    assert.equal('stamped' in body.data, false);
     assert.deepEqual(body.data.items.map((item: { seq: number }) => item.seq), [1, 2]);
     assert.deepEqual(body.data.items.map((item: { checkedIn: boolean }) => item.checkedIn), [true, false]);
   });
@@ -450,6 +514,8 @@ if (integrationSkipReason) {
 
     assert.equal(response.statusCode, 200);
     assert.equal(body.data.title_ko, '새 코스');
+    assert.equal(body.data.stampProgress, null);
+    assert.equal('stamped' in body.data, false);
     assert.equal(rows[0]?.created_by_user_id, seeded.userId);
   });
 
@@ -479,6 +545,8 @@ if (integrationSkipReason) {
 
     assert.equal(response.statusCode, 200);
     assert.equal(body.data.title_ko, '업데이트 코스');
+    assert.equal(body.data.stampProgress, null);
+    assert.equal('stamped' in body.data, false);
     assert.equal(rows[0]?.total, 2);
   });
 
@@ -561,7 +629,10 @@ if (integrationSkipReason) {
       checkedIn: true,
       courseId: seeded.officialCourseId,
       courseItemId: seeded.officialCourseItemIds.second,
-      stamped: true,
+      stampProgress: {
+        checkedInCount: 2,
+        totalCount: 2,
+      },
     });
     assert.equal(await countCourseCheckins(seeded.userId, seeded.officialCourseItemIds.second), 1);
   });

@@ -331,7 +331,7 @@ async function seedContentScenario(): Promise<SeededContentIds> {
       2020,
       null,
       null,
-      null,
+      'steel',
       '영일대 바다를 바라보는 작품',
       'Artwork facing the Yeongildae sea',
       null,
@@ -409,7 +409,7 @@ async function seedContentScenario(): Promise<SeededContentIds> {
       2019,
       null,
       null,
-      null,
+      'steel',
       '삭제된 작품',
       'Deleted artwork',
       null,
@@ -610,7 +610,11 @@ test('recommended courses endpoint returns official courses only', { skip: integ
   assert.equal(response.statusCode, 200);
   assert.equal(body.data.courses.length, 1);
   assert.equal(body.data.courses[0].id, seeded.officialCourseId);
-  assert.equal(body.data.courses[0].stamped, true);
+  assert.deepEqual(body.data.courses[0].stampProgress, {
+    checkedInCount: 1,
+    totalCount: 2,
+  });
+  assert.equal('stamped' in body.data.courses[0], false);
   assert.equal(body.data.courses[0].thumbnail_image_url, 'https://example.com/space-walk-1.jpg');
   assert.equal(body.data.courses[0].thumbnail_image_width, 1200);
   assert.equal(body.data.courses[0].thumbnail_image_height, 800);
@@ -921,8 +925,8 @@ test('artwork detail endpoint returns images, festival years, and liked state', 
   assert.deepEqual(body.data.festival_years, ['2024', '2023']);
   assert.equal(body.data.images.length, 2);
   assert.equal(body.data.material, 'steel');
-  assert.equal(body.data.zone_name_ko, '환호');
-  assert.equal(body.data.zone_name_en, 'Hwanho');
+  assert.equal(body.data.zone_name_ko, '영일');
+  assert.equal(body.data.zone_name_en, 'Yeongil');
 });
 
 // 작품 필터 API는 zone 아래에 place 목록을 묶어 반환하고 축제 연도 목록도 함께 내려야 한다.
