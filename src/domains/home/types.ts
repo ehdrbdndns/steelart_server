@@ -1,4 +1,5 @@
 import type { ArtworkCard } from '../artworks/types.js';
+import type { StampProgress } from '../courses/types.js';
 
 export interface HomeBanner {
   banner_image_url: string | null;
@@ -35,7 +36,7 @@ export interface RecommendedCourseCard {
   description_ko: string | null;
   id: number;
   is_official: true;
-  stamped: boolean;
+  stampProgress: StampProgress;
   thumbnail_image_height: number | null;
   thumbnail_image_url: string | null;
   thumbnail_image_width: number | null;

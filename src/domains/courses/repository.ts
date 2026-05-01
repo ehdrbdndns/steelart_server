@@ -14,6 +14,7 @@ import type {
   CourseListItem,
   CourseRecord,
   CreateCourseInput,
+  StampProgress,
   UpdateCourseInput,
 } from './types.js';
 
@@ -38,13 +39,14 @@ interface CourseListMetaRow extends RowDataPacket {
   description_ko: string | null;
   end_place_name_en: string | null;
   end_place_name_ko: string | null;
+  checked_in_count: number;
   liked: number | boolean;
-  stamped: number | boolean;
   start_place_name_en: string | null;
   start_place_name_ko: string | null;
   thumbnail_image_height: number | null;
   thumbnail_image_url: string | null;
   thumbnail_image_width: number | null;
+  total_count: number;
 }
 
 interface CourseDetailSummaryRow extends RowDataPacket {
@@ -54,7 +56,6 @@ interface CourseDetailSummaryRow extends RowDataPacket {
   id: number;
   is_official: number | boolean;
   liked: number | boolean;
-  stamped: number | boolean;
   title_en: string;
   title_ko: string;
 }
@@ -93,6 +94,11 @@ interface CourseCheckinTargetRow extends RowDataPacket {
   lng: number;
 }
 
+interface CourseStampProgressRow extends RowDataPacket {
+  checked_in_count: number;
+  total_count: number;
+}
+
 const FIRST_ARTWORK_THUMBNAIL_SQL = `
   SELECT ai.artwork_id, ai.image_url, ai.image_width, ai.image_height
   FROM artwork_images ai
@@ -108,7 +114,18 @@ function buildInClausePlaceholders(count: number): string {
   return Array.from({ length: count }, () => '?').join(', ');
 }
 
-function mapCourseListRow(baseRow: CourseListBaseRow, metaRow?: CourseListMetaRow): CourseListItem {
+function mapStampProgress(checkedInCount: number, totalCount: number): StampProgress {
+  return {
+    checkedInCount,
+    totalCount,
+  };
+}
+
+function mapCourseListRow(
+  baseRow: CourseListBaseRow,
+  metaRow: CourseListMetaRow | undefined,
+  includeStampProgress: boolean,
+): CourseListItem {
   return {
     description_en: baseRow.description_en,
     description_ko: baseRow.description_ko,
@@ -117,7 +134,12 @@ function mapCourseListRow(baseRow: CourseListBaseRow, metaRow?: CourseListMetaRo
     id: baseRow.id,
     is_official: baseRow.is_official === true || baseRow.is_official === 1,
     liked: metaRow?.liked === true || metaRow?.liked === 1,
-    stamped: metaRow?.stamped === true || metaRow?.stamped === 1,
+    stampProgress: includeStampProgress
+      ? mapStampProgress(
+        Number(metaRow?.checked_in_count ?? 0),
+        Number(metaRow?.total_count ?? 0),
+      )
+      : null,
     start_place_name_en: metaRow?.start_place_name_en ?? null,
     start_place_name_ko: metaRow?.start_place_name_ko ?? null,
     thumbnail_image_height: metaRow?.thumbnail_image_height ?? null,
@@ -160,15 +182,19 @@ function mapCourseDetailRows(
   summaryRow: CourseDetailSummaryRow,
   itemRows: CourseDetailItemRow[],
 ): CourseDetail {
+  const isOfficial = summaryRow.is_official === true || summaryRow.is_official === 1;
+  const checkedInCount = itemRows.filter((row) => row.checked_in === true || row.checked_in === 1).length;
+  const totalCount = itemRows.length;
+
   return {
     description_en: summaryRow.description_en,
     description_ko: summaryRow.description_ko,
     editable: summaryRow.editable === true || summaryRow.editable === 1,
     id: summaryRow.id,
-    is_official: summaryRow.is_official === true || summaryRow.is_official === 1,
+    is_official: isOfficial,
     items: itemRows.map(mapCourseDetailItemRow),
     liked: summaryRow.liked === true || summaryRow.liked === 1,
-    stamped: summaryRow.stamped === true || summaryRow.stamped === 1,
+    stampProgress: isOfficial ? mapStampProgress(checkedInCount, totalCount) : null,
     title_en: summaryRow.title_en,
     title_ko: summaryRow.title_ko,
   };
@@ -191,21 +217,37 @@ function buildCourseListPageSql(whereSql: string): string {
 
 function buildCourseListMetaSql(
   courseIdsCount: number,
-  includeStamped: boolean,
+  includeStampProgress: boolean,
 ): string {
   const placeholders = buildInClausePlaceholders(courseIdsCount);
-  const stampedSql = includeStamped
-    ? `CASE
-          WHEN EXISTS (
-            SELECT 1
-            FROM course_checkins cc
-            WHERE cc.user_id = ?
-              AND cc.course_id = c.id
-            LIMIT 1
-          ) THEN 1
-          ELSE 0
-        END`
-    : '0';
+  const progressSelectSql = includeStampProgress
+    ? `COALESCE(progress.checked_in_count, 0) AS checked_in_count,
+      COALESCE(progress.total_count, 0) AS total_count`
+    : `0 AS checked_in_count,
+      0 AS total_count`;
+  const progressJoinSql = includeStampProgress
+    ? `LEFT JOIN (
+      SELECT
+        ci.course_id,
+        COUNT(ci.id) AS total_count,
+        COUNT(DISTINCT cc.course_item_id) AS checked_in_count
+      FROM course_items ci
+      INNER JOIN artworks a
+        ON a.id = ci.artwork_id
+       AND a.deleted_at IS NULL
+      INNER JOIN artists ar
+        ON ar.id = a.artist_id
+       AND ar.deleted_at IS NULL
+      INNER JOIN places p
+        ON p.id = a.place_id
+       AND p.deleted_at IS NULL
+      LEFT JOIN course_checkins cc
+        ON cc.course_item_id = ci.id
+       AND cc.user_id = ?
+      GROUP BY ci.course_id
+    ) progress
+      ON progress.course_id = c.id`
+    : '';
 
   return `SELECT
       c.id AS course_id,
@@ -219,7 +261,7 @@ function buildCourseListMetaSql(
         ) THEN 1
         ELSE 0
       END AS liked,
-      ${stampedSql} AS stamped,
+      ${progressSelectSql},
       start_place.name_ko AS start_place_name_ko,
       start_place.name_en AS start_place_name_en,
       end_place.name_ko AS end_place_name_ko,
@@ -261,6 +303,7 @@ function buildCourseListMetaSql(
        FROM artwork_images ai_min
        WHERE ai_min.artwork_id = first_course_item.artwork_id
      )
+    ${progressJoinSql}
     WHERE c.id IN (${placeholders})`;
 }
 
@@ -268,14 +311,14 @@ async function hydrateCourseListMetaRows(
   connection: PoolConnection,
   courseIds: number[],
   userId: number,
-  includeStamped: boolean,
+  includeStampProgress: boolean,
 ): Promise<Map<number, CourseListMetaRow>> {
   if (courseIds.length === 0) {
     return new Map();
   }
 
-  const sql = buildCourseListMetaSql(courseIds.length, includeStamped);
-  const params: SqlParam[] = includeStamped
+  const sql = buildCourseListMetaSql(courseIds.length, includeStampProgress);
+  const params: SqlParam[] = includeStampProgress
     ? [userId, userId, ...courseIds]
     : [userId, ...courseIds];
   const [rows] = await connection.execute<CourseListMetaRow[]>(sql, params);
@@ -296,6 +339,7 @@ export interface CoursesRepository {
   findCourseDetail(courseId: number, userId: number): Promise<CourseDetail | null>;
   findCourseExists(courseId: number): Promise<boolean>;
   findCourseRecord(courseId: number): Promise<CourseRecord | null>;
+  findCourseStampProgress(courseId: number, userId: number): Promise<StampProgress>;
   listActiveArtworkIds(artworkIds: number[]): Promise<number[]>;
   listMyCourses(input: CourseListInput, userId: number): Promise<{ courses: CourseListItem[]; total: number }>;
   listRecommendedCourses(
@@ -397,6 +441,9 @@ export const coursesRepository: CoursesRepository = {
          INNER JOIN artworks a
            ON a.id = ci.artwork_id
           AND a.deleted_at IS NULL
+         INNER JOIN artists ar
+           ON ar.id = a.artist_id
+          AND ar.deleted_at IS NULL
          INNER JOIN places p
            ON p.id = a.place_id
           AND p.deleted_at IS NULL
@@ -433,7 +480,6 @@ export const coursesRepository: CoursesRepository = {
             c.description_en,
             c.is_official,
             CASE WHEN course_like.course_id IS NULL THEN 0 ELSE 1 END AS liked,
-            CASE WHEN course_stamp.course_id IS NULL THEN 0 ELSE 1 END AS stamped,
             CASE
               WHEN c.is_official = 0 AND c.created_by_user_id = ? THEN 1
               ELSE 0
@@ -445,16 +491,10 @@ export const coursesRepository: CoursesRepository = {
            WHERE user_id = ?
          ) course_like
            ON course_like.course_id = c.id
-         LEFT JOIN (
-           SELECT DISTINCT course_id
-           FROM course_checkins
-           WHERE user_id = ?
-         ) course_stamp
-           ON course_stamp.course_id = c.id
          WHERE c.id = ?
            AND c.deleted_at IS NULL
          LIMIT 1`,
-        [userId, userId, userId, courseId],
+        [userId, userId, courseId],
       );
       const summary = summaryRows[0];
 
@@ -533,6 +573,37 @@ export const coursesRepository: CoursesRepository = {
     });
   },
 
+  async findCourseStampProgress(courseId, userId) {
+    return withConnection(async (connection) => {
+      const [rows] = await connection.execute<CourseStampProgressRow[]>(
+        `SELECT
+            COUNT(ci.id) AS total_count,
+            COUNT(DISTINCT cc.course_item_id) AS checked_in_count
+         FROM course_items ci
+         INNER JOIN artworks a
+           ON a.id = ci.artwork_id
+          AND a.deleted_at IS NULL
+         INNER JOIN artists ar
+           ON ar.id = a.artist_id
+          AND ar.deleted_at IS NULL
+         INNER JOIN places p
+           ON p.id = a.place_id
+          AND p.deleted_at IS NULL
+         LEFT JOIN course_checkins cc
+           ON cc.user_id = ?
+          AND cc.course_item_id = ci.id
+         WHERE ci.course_id = ?`,
+        [userId, courseId],
+      );
+      const row = rows[0];
+
+      return mapStampProgress(
+        Number(row?.checked_in_count ?? 0),
+        Number(row?.total_count ?? 0),
+      );
+    });
+  },
+
   async listActiveArtworkIds(artworkIds) {
     if (artworkIds.length === 0) {
       return [];
@@ -580,7 +651,7 @@ export const coursesRepository: CoursesRepository = {
       const metaByCourseId = await hydrateCourseListMetaRows(connection, courseIds, userId, false);
 
       return {
-        courses: rows.map((row) => mapCourseListRow(row, metaByCourseId.get(row.id))),
+        courses: rows.map((row) => mapCourseListRow(row, metaByCourseId.get(row.id), false)),
         total: countRows[0]?.total ?? 0,
       };
     });
@@ -605,7 +676,7 @@ export const coursesRepository: CoursesRepository = {
       const metaByCourseId = await hydrateCourseListMetaRows(connection, courseIds, userId, true);
 
       return {
-        courses: rows.map((row) => mapCourseListRow(row, metaByCourseId.get(row.id))),
+        courses: rows.map((row) => mapCourseListRow(row, metaByCourseId.get(row.id), true)),
         total: countRows[0]?.total ?? 0,
       };
     });

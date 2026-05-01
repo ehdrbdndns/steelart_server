@@ -11,6 +11,11 @@ export interface CourseListInput {
   size: number;
 }
 
+export interface StampProgress {
+  checkedInCount: number;
+  totalCount: number;
+}
+
 export interface CourseListItem {
   description_en: string | null;
   description_ko: string | null;
@@ -19,7 +24,7 @@ export interface CourseListItem {
   id: number;
   is_official: boolean;
   liked: boolean;
-  stamped: boolean;
+  stampProgress: StampProgress | null;
   start_place_name_en: string | null;
   start_place_name_ko: string | null;
   thumbnail_image_height: number | null;
@@ -62,7 +67,7 @@ export interface CourseDetail {
   is_official: boolean;
   items: CourseDetailItem[];
   liked: boolean;
-  stamped: boolean;
+  stampProgress: StampProgress | null;
   title_en: string;
   title_ko: string;
 }
@@ -103,7 +108,7 @@ export interface CourseCheckinResponse {
   checkedIn: true;
   courseId: number;
   courseItemId: number;
-  stamped: true;
+  stampProgress: StampProgress;
 }
 
 export interface CourseRecord {
