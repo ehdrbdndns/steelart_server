@@ -62,6 +62,7 @@
 - Write new local documents in Korean, and keep updated documents in Korean as they evolve.
 - `plan.md`를 작성하거나 갱신할 때는 먼저 관련 소스 파일과 테스트 파일을 읽고, 실제 코드베이스 구조를 기준으로 계획을 작성한다.
 - 사용자 프롬프트에 답변할 때는 항상 Sequential Thinking MCP를 먼저 사용해 사고 과정을 정리한 뒤 응답한다.
+- 코드를 분석할 때는 가능한 경우 Serena MCP를 우선 사용해 grep 같은 텍스트 검색 위주가 아니라 심볼 정의, 참조, 호출 관계 기반의 심볼릭 분석을 먼저 수행한다.
 - Do not introduce product behavior that conflicts with root app docs or the server API draft.
 - If implementation needs an API contract change, update the root draft first or together.
 - Before schema changes, check whether `steelart_dashboard` admin flows and seed data are affected.
