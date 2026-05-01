@@ -192,8 +192,9 @@ export function createCoursesService(
       }
 
       await dependencies.coursesRepository.createCourseCheckin(userId, courseId, input.course_item_id);
+      const stampProgress = await dependencies.coursesRepository.findCourseStampProgress(courseId, userId);
 
-      return mapCourseCheckinResponse(courseId, input.course_item_id);
+      return mapCourseCheckinResponse(courseId, input.course_item_id, stampProgress);
     },
 
     async createCourse(input, userId) {

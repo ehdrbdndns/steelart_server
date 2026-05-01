@@ -61,7 +61,10 @@ function createCoursesServiceStub(overrides: Partial<CoursesService> = {}): Cour
         checkedIn: true,
         courseId,
         courseItemId: input.course_item_id,
-        stamped: true,
+        stampProgress: {
+          checkedInCount: 2,
+          totalCount: 5,
+        },
       };
     },
     async createCourse() {
@@ -73,7 +76,7 @@ function createCoursesServiceStub(overrides: Partial<CoursesService> = {}): Cour
         is_official: false,
         items: [],
         liked: false,
-        stamped: false,
+        stampProgress: null,
         title_en: 'Course',
         title_ko: '코스',
       };
@@ -105,7 +108,7 @@ function createCoursesServiceStub(overrides: Partial<CoursesService> = {}): Cour
           },
         ],
         liked: true,
-        stamped: false,
+        stampProgress: null,
         title_en: 'Course',
         title_ko: '코스',
       };
@@ -127,7 +130,7 @@ function createCoursesServiceStub(overrides: Partial<CoursesService> = {}): Cour
             id: 2,
             is_official: false,
             liked: false,
-            stamped: false,
+            stampProgress: null,
             start_place_name_en: 'Yeongildae',
             start_place_name_ko: '영일대',
             thumbnail_image_height: 800,
@@ -153,7 +156,10 @@ function createCoursesServiceStub(overrides: Partial<CoursesService> = {}): Cour
             id: 1,
             is_official: true,
             liked: true,
-            stamped: false,
+            stampProgress: {
+              checkedInCount: 1,
+              totalCount: 2,
+            },
             start_place_name_en: 'Yeongildae',
             start_place_name_ko: '영일대',
             thumbnail_image_height: 800,
@@ -183,7 +189,7 @@ function createCoursesServiceStub(overrides: Partial<CoursesService> = {}): Cour
         is_official: false,
         items: [],
         liked: false,
-        stamped: false,
+        stampProgress: null,
         title_en: 'Updated Course',
         title_ko: '수정 코스',
       };
@@ -221,7 +227,13 @@ test('courses handler returns recommended list response for GET /v1/courses/reco
   ) as APIGatewayProxyStructuredResultV2;
 
   assert.equal(response.statusCode, 200);
-  assert.equal(JSON.parse(response.body as string).data.courses[0].liked, true);
+  const body = JSON.parse(response.body as string);
+  assert.equal(body.data.courses[0].liked, true);
+  assert.deepEqual(body.data.courses[0].stampProgress, {
+    checkedInCount: 1,
+    totalCount: 2,
+  });
+  assert.equal('stamped' in body.data.courses[0], false);
 });
 
 test('courses handler returns my list response for GET /v1/courses/mine', async () => {
@@ -242,7 +254,10 @@ test('courses handler returns my list response for GET /v1/courses/mine', async 
   ) as APIGatewayProxyStructuredResultV2;
 
   assert.equal(response.statusCode, 200);
-  assert.equal(JSON.parse(response.body as string).data.courses[0].is_official, false);
+  const body = JSON.parse(response.body as string);
+  assert.equal(body.data.courses[0].is_official, false);
+  assert.equal(body.data.courses[0].stampProgress, null);
+  assert.equal('stamped' in body.data.courses[0], false);
 });
 
 test('courses handler returns detail response for GET /v1/courses/{courseId}', async () => {
@@ -266,7 +281,10 @@ test('courses handler returns detail response for GET /v1/courses/{courseId}', a
   ) as APIGatewayProxyStructuredResultV2;
 
   assert.equal(response.statusCode, 200);
-  assert.equal(JSON.parse(response.body as string).data.id, 12);
+  const body = JSON.parse(response.body as string);
+  assert.equal(body.data.id, 12);
+  assert.equal(body.data.stampProgress, null);
+  assert.equal('stamped' in body.data, false);
 });
 
 test('courses handler returns detail response for POST /v1/courses', async () => {
@@ -412,7 +430,10 @@ test('courses handler returns check-in response for POST /v1/courses/{courseId}/
     checkedIn: true,
     courseId: 12,
     courseItemId: 31,
-    stamped: true,
+    stampProgress: {
+      checkedInCount: 2,
+      totalCount: 5,
+    },
   });
 });
 

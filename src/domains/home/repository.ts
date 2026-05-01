@@ -22,16 +22,17 @@ interface HomeZoneRow extends RowDataPacket {
 }
 
 interface RecommendedCourseRow extends RowDataPacket {
+  checked_in_count: number;
   description_en: string | null;
   description_ko: string | null;
   id: number;
   is_official: number | boolean;
-  stamped: number | boolean;
   thumbnail_image_height: number | null;
   thumbnail_image_url: string | null;
   thumbnail_image_width: number | null;
   title_en: string;
   title_ko: string;
+  total_count: number;
 }
 
 const FIRST_ARTWORK_THUMBNAIL_SQL = `
@@ -96,7 +97,8 @@ export const homeRepository: HomeRepository = {
             c.description_ko,
             c.description_en,
             c.is_official,
-            CASE WHEN course_stamp.course_id IS NULL THEN 0 ELSE 1 END AS stamped,
+            COALESCE(progress.checked_in_count, 0) AS checked_in_count,
+            COALESCE(progress.total_count, 0) AS total_count,
             first_thumb.image_url AS thumbnail_image_url,
             first_thumb.image_width AS thumbnail_image_width,
             first_thumb.image_height AS thumbnail_image_height
@@ -105,10 +107,25 @@ export const homeRepository: HomeRepository = {
            ON first_course_item.course_id = c.id
           AND first_course_item.seq = 1
          LEFT JOIN (
-           SELECT DISTINCT course_id
-           FROM course_checkins
-           WHERE user_id = ?
-         ) course_stamp ON course_stamp.course_id = c.id
+           SELECT
+             ci.course_id,
+             COUNT(ci.id) AS total_count,
+             COUNT(DISTINCT cc.course_item_id) AS checked_in_count
+           FROM course_items ci
+           INNER JOIN artworks a
+             ON a.id = ci.artwork_id
+            AND a.deleted_at IS NULL
+           INNER JOIN artists ar
+             ON ar.id = a.artist_id
+            AND ar.deleted_at IS NULL
+           INNER JOIN places p
+             ON p.id = a.place_id
+            AND p.deleted_at IS NULL
+           LEFT JOIN course_checkins cc
+             ON cc.course_item_id = ci.id
+            AND cc.user_id = ?
+           GROUP BY ci.course_id
+         ) progress ON progress.course_id = c.id
          LEFT JOIN (${FIRST_ARTWORK_THUMBNAIL_SQL}) first_thumb
            ON first_thumb.artwork_id = first_course_item.artwork_id
          WHERE c.is_official = 1
@@ -122,7 +139,10 @@ export const homeRepository: HomeRepository = {
         description_ko: row.description_ko,
         id: row.id,
         is_official: true,
-        stamped: row.stamped === true || row.stamped === 1,
+        stampProgress: {
+          checkedInCount: Number(row.checked_in_count ?? 0),
+          totalCount: Number(row.total_count ?? 0),
+        },
         thumbnail_image_height: row.thumbnail_image_height,
         thumbnail_image_url: row.thumbnail_image_url,
         thumbnail_image_width: row.thumbnail_image_width,

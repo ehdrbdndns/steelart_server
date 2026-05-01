@@ -5,6 +5,7 @@ import type {
   CourseLikeResponse,
   CourseListItem,
   CourseListResponse,
+  StampProgress,
 } from './types.js';
 
 export function mapCourseListItem(course: CourseListItem): CourseListItem {
@@ -16,7 +17,7 @@ export function mapCourseListItem(course: CourseListItem): CourseListItem {
     id: course.id,
     is_official: course.is_official,
     liked: course.liked,
-    stamped: course.stamped,
+    stampProgress: course.stampProgress,
     start_place_name_en: course.start_place_name_en,
     start_place_name_ko: course.start_place_name_ko,
     thumbnail_image_height: course.thumbnail_image_height,
@@ -70,7 +71,7 @@ export function mapCourseDetail(detail: CourseDetail): CourseDetail {
     is_official: detail.is_official,
     items: detail.items.map(mapCourseDetailItem),
     liked: detail.liked,
-    stamped: detail.stamped,
+    stampProgress: detail.stampProgress,
     title_en: detail.title_en,
     title_ko: detail.title_ko,
   };
@@ -86,11 +87,12 @@ export function mapCourseLikeResponse(courseId: number, liked: boolean): CourseL
 export function mapCourseCheckinResponse(
   courseId: number,
   courseItemId: number,
+  stampProgress: StampProgress,
 ): CourseCheckinResponse {
   return {
     checkedIn: true,
     courseId,
     courseItemId,
-    stamped: true,
+    stampProgress,
   };
 }

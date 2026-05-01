@@ -121,7 +121,7 @@ export async function handleCoursesRequest(
       });
     }
 
-    // 공식 코스 진행 중 특정 코스 아이템 방문을 기록해 stamped 상태를 만드는 체크인 API.
+    // 공식 코스 진행 중 특정 코스 아이템 방문을 기록하고 최신 스탬프 진행률을 반환하는 체크인 API.
     if (request.routePath === '/v1/courses/{courseId}/checkins') {
       assertMethod(request.method, ['POST']);
       const params = parseInput({

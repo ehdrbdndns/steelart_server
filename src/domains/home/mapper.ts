@@ -54,7 +54,7 @@ export function mapRecommendedCourseCard(course: RecommendedCourseCard): Recomme
     description_ko: course.description_ko,
     id: course.id,
     is_official: true,
-    stamped: course.stamped,
+    stampProgress: course.stampProgress,
     thumbnail_image_height: course.thumbnail_image_height,
     thumbnail_image_url: course.thumbnail_image_url,
     thumbnail_image_width: course.thumbnail_image_width,
