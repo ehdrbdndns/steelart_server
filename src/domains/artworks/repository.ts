@@ -499,7 +499,7 @@ export const artworksRepository: ArtworksRepository = {
            AND p.deleted_at IS NULL
            AND p.zone_id = ?
          ORDER BY a.updated_at DESC
-         LIMIT 10`,
+         LIMIT 3`,
         params,
       );
 
