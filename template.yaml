@@ -109,6 +109,20 @@ Resources:
       Name: !Sub ${AppName}-${StageName}
       StageName: !Ref StageName
       PropagateTags: true
+      CorsConfiguration:
+        AllowOrigins:
+          - http://localhost:8080
+          - http://localhost:8081
+        AllowMethods:
+          - GET
+          - POST
+          - PATCH
+          - DELETE
+          - OPTIONS
+        AllowHeaders:
+          - authorization
+          - content-type
+        MaxAge: 300
       DefaultRouteSettings:
         DetailedMetricsEnabled: false
       AccessLogSettings:
