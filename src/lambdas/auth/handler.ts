@@ -8,6 +8,7 @@ import type {
 import { AppError, serializeErrorForLog, toAppError } from '../../shared/api/errors.js';
 import {
   appleLoginSchema,
+  devLoginSchema,
   kakaoLoginSchema,
   refreshTokenSchema,
 } from '../../domains/auth/schemas.js';
@@ -22,6 +23,7 @@ import { fail, ok } from '../../shared/api/response.js';
 import { requireAuth } from '../../shared/auth/guard.js';
 import { createAppleAuthProvider } from '../../shared/auth/providers/apple.js';
 import { createKakaoAuthProvider } from '../../shared/auth/providers/kakao.js';
+import { getEnv, isDevLoginEnabled } from '../../shared/env/server.js';
 import { createLoggerFromRequest } from '../../shared/logger/logger.js';
 import { parseInput } from '../../shared/validation/parse.js';
 
@@ -55,6 +57,27 @@ export async function handleAuthRequest(
   });
 
   try {
+    if (request.path === '/v1/dev/auth/login') {
+      assertMethod(request.method, ['POST']);
+
+      if (!isDevLoginEnabled(getEnv().APP_ENV)) {
+        throw new AppError('NOT_FOUND', {
+          message: 'Auth route not found',
+        });
+      }
+
+      const input = parseInput({
+        schema: devLoginSchema,
+        input: request.parseJsonBody(),
+        message: 'Dev login payload is invalid',
+      });
+      const result = await service.loginForDev(input);
+
+      return ok(result, {
+        requestId: request.requestId ?? null,
+      });
+    }
+
     if (request.path === '/v1/auth/kakao') {
       assertMethod(request.method, ['POST']);
       const input = parseInput({

@@ -41,9 +41,12 @@ export interface CreateUserWithIdentityInput {
 }
 
 export interface AuthRepository {
+  createDefaultDevUser(): Promise<UserRecord>;
   createUserWithIdentityAndRefreshToken(input: CreateUserWithIdentityInput): Promise<UserRecord>;
   createRefreshTokenRecord(userId: number, refreshToken: string, expiresAt: Date): Promise<void>;
+  findDefaultDevUser(): Promise<UserRecord | null>;
   findRefreshToken(refreshToken: string): Promise<RefreshTokenRecord | null>;
+  findUserById(userId: number): Promise<UserRecord | null>;
   findUserByProviderIdentity(provider: AuthProvider, providerUserId: string): Promise<UserRecord | null>;
 }
 
@@ -57,6 +60,14 @@ const USER_SELECT_COLUMNS = [
   'u.created_at',
   'u.updated_at',
 ].join(', ');
+
+const DEFAULT_DEV_USER = {
+  ageGroup: '30S',
+  language: 'ko',
+  nickname: 'dev-user',
+  notificationsEnabled: true,
+  residency: 'POHANG',
+} as const;
 
 function mapUserRow(row: UserRow): UserRecord {
   const trimmedNickname = row.nickname?.trim();
@@ -87,6 +98,49 @@ function mapRefreshTokenRow(row: RefreshTokenRow): RefreshTokenRecord {
 }
 
 export const authRepository: AuthRepository = {
+  async createDefaultDevUser() {
+    return withConnection(async (connection) => {
+      const now = new Date();
+      const [userInsertResult] = await connection.execute<ResultSetHeader>(
+        `INSERT INTO users (
+            nickname,
+            residency,
+            age_group,
+            language,
+            notifications_enabled,
+            created_at,
+            updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          DEFAULT_DEV_USER.nickname,
+          DEFAULT_DEV_USER.residency,
+          DEFAULT_DEV_USER.ageGroup,
+          DEFAULT_DEV_USER.language,
+          DEFAULT_DEV_USER.notificationsEnabled ? 1 : 0,
+          now,
+          now,
+        ],
+      );
+
+      const [rows] = await connection.execute<UserRow[]>(
+        `SELECT ${USER_SELECT_COLUMNS}
+          FROM users u
+          WHERE u.id = ?
+          LIMIT 1`,
+        [userInsertResult.insertId],
+      );
+      const user = rows[0] ? mapUserRow(rows[0]) : null;
+
+      if (!user) {
+        throw new AppError('INTERNAL_ERROR', {
+          message: 'Created dev user could not be reloaded',
+        });
+      }
+
+      return user;
+    });
+  },
+
   async createUserWithIdentityAndRefreshToken(input) {
     return withTransaction(async (connection) => {
       const now = new Date();
@@ -152,6 +206,27 @@ export const authRepository: AuthRepository = {
     });
   },
 
+  async findDefaultDevUser() {
+    return withConnection(async (connection) => {
+      const [rows] = await connection.execute<UserRow[]>(
+        `SELECT ${USER_SELECT_COLUMNS}
+          FROM users u
+          WHERE u.nickname = ?
+            AND u.residency = ?
+            AND u.age_group = ?
+          ORDER BY u.id ASC
+          LIMIT 1`,
+        [
+          DEFAULT_DEV_USER.nickname,
+          DEFAULT_DEV_USER.residency,
+          DEFAULT_DEV_USER.ageGroup,
+        ],
+      );
+
+      return rows[0] ? mapUserRow(rows[0]) : null;
+    });
+  },
+
   async findRefreshToken(refreshToken) {
     return withConnection(async (connection) => {
       const [rows] = await connection.execute<RefreshTokenRow[]>(
@@ -170,6 +245,20 @@ export const authRepository: AuthRepository = {
       );
 
       return rows[0] ? mapRefreshTokenRow(rows[0]) : null;
+    });
+  },
+
+  async findUserById(userId) {
+    return withConnection(async (connection) => {
+      const [rows] = await connection.execute<UserRow[]>(
+        `SELECT ${USER_SELECT_COLUMNS}
+          FROM users u
+          WHERE u.id = ?
+          LIMIT 1`,
+        [userId],
+      );
+
+      return rows[0] ? mapUserRow(rows[0]) : null;
     });
   },
 

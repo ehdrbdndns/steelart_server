@@ -6,6 +6,7 @@ import {
   signAccessToken,
 } from '../../shared/auth/token.js';
 import type { UsersRepository } from '../users/repository.js';
+import type { UserRecord } from '../users/types.js';
 import {
   mapLoginResponse,
   mapRefreshResponse,
@@ -15,6 +16,7 @@ import type { AuthRepository } from './repository.js';
 import type {
   AppleAuthProviderClient,
   AppleLoginInput,
+  DevLoginInput,
   KakaoAuthProviderClient,
   KakaoLoginInput,
   LoginResponseData,
@@ -25,6 +27,7 @@ import type {
 
 export interface AuthService {
   getSession(userId: number): Promise<SessionResponseData>;
+  loginForDev(input: DevLoginInput): Promise<LoginResponseData>;
   loginWithApple(input: AppleLoginInput): Promise<LoginResponseData>;
   loginWithKakao(input: KakaoLoginInput): Promise<LoginResponseData>;
   refreshAccessToken(refreshToken: string): Promise<RefreshResponseData>;
@@ -70,6 +73,24 @@ export function createAuthService(
     );
   }
 
+  async function issueLoginResponseForUser(user: UserRecord): Promise<LoginResponseData> {
+    const currentTime = new Date();
+    const refreshToken = createRefreshToken();
+    const refreshTokenExpiresAt = getRefreshTokenExpiresAt(currentTime);
+
+    await dependencies.authRepository.createRefreshTokenRecord(
+      user.id,
+      refreshToken,
+      refreshTokenExpiresAt,
+    );
+
+    return mapLoginResponse(
+      user,
+      signAccessToken(user.id, { now: currentTime }),
+      refreshToken,
+    );
+  }
+
   return {
     async getSession(userId) {
       const user = await dependencies.usersRepository.findUserById(userId);
@@ -81,6 +102,25 @@ export function createAuthService(
       }
 
       return mapSessionResponse(user);
+    },
+
+    async loginForDev(input) {
+      if (input.userId) {
+        const user = await dependencies.authRepository.findUserById(input.userId);
+
+        if (!user) {
+          throw new AppError('NOT_FOUND', {
+            message: 'Dev login user not found',
+          });
+        }
+
+        return issueLoginResponseForUser(user);
+      }
+
+      const user = await dependencies.authRepository.findDefaultDevUser()
+        ?? await dependencies.authRepository.createDefaultDevUser();
+
+      return issueLoginResponseForUser(user);
     },
 
     async loginWithApple(input) {
