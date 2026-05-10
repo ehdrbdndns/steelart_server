@@ -142,6 +142,36 @@ test('auth handler returns session response for GET /v1/auth/me', async () => {
   });
 });
 
+// API Gateway HTTP API의 ANY proxy route가 OPTIONS를 Lambda로 넘겨도 preflight는 성공해야 한다.
+test('auth handler returns no content for CORS preflight requests', async () => {
+  applyServerTestEnv();
+
+  const response = await handleAuthRequest(
+    createEvent({
+      headers: {
+        'access-control-request-headers': 'authorization',
+        'access-control-request-method': 'GET',
+        origin: 'http://localhost:8081',
+      },
+      requestContext: {
+        ...createEvent().requestContext,
+        http: {
+          ...createEvent().requestContext.http,
+          method: 'OPTIONS',
+          path: '/v1/auth/me',
+        },
+        routeKey: 'ANY /v1/auth/{proxy+}',
+      },
+      routeKey: 'ANY /v1/auth/{proxy+}',
+    }),
+    {} as never,
+    createAuthServiceStub(),
+  ) as APIGatewayProxyStructuredResultV2;
+
+  assert.equal(response.statusCode, 204);
+  assert.equal(response.body, undefined);
+});
+
 // proxy routeKey로 들어와도 auth handler는 실제 세부 경로를 인식해야 한다.
 test('auth handler resolves proxied auth route path from rawPath', async () => {
   applyServerTestEnv();

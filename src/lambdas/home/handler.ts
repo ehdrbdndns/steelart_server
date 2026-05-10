@@ -11,7 +11,7 @@ import { homeArtworksQuerySchema } from '../../domains/home/schemas.js';
 import { homeRepository } from '../../domains/home/repository.js';
 import { artworksRepository } from '../../domains/artworks/repository.js';
 import { createHttpRequest } from '../../shared/api/route.js';
-import { fail, ok } from '../../shared/api/response.js';
+import { fail, ok, preflight } from '../../shared/api/response.js';
 import { requireAuth } from '../../shared/auth/guard.js';
 import { createLoggerFromRequest } from '../../shared/logger/logger.js';
 import { parseInput } from '../../shared/validation/parse.js';
@@ -42,6 +42,10 @@ export async function handleHomeRequest(
   const logger = createLoggerFromRequest(event, context, {
     domain: 'home',
   });
+
+  if (request.method === 'OPTIONS') {
+    return preflight();
+  }
 
   try {
     const auth = requireAuth(event, context);

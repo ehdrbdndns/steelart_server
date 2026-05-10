@@ -25,6 +25,12 @@ const DEFAULT_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
 };
 
+export function preflight(): APIGatewayProxyStructuredResultV2 {
+  return {
+    statusCode: 204,
+  };
+}
+
 function jsonResponse(
   statusCode: number,
   payload: ApiErrorEnvelope | ApiSuccessEnvelope<unknown>,

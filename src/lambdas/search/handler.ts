@@ -7,7 +7,7 @@ import type {
 
 import { AppError, serializeErrorForLog, toAppError } from '../../shared/api/errors.js';
 import { createHttpRequest } from '../../shared/api/route.js';
-import { fail, ok } from '../../shared/api/response.js';
+import { fail, ok, preflight } from '../../shared/api/response.js';
 import { requireAuth } from '../../shared/auth/guard.js';
 import { createLoggerFromRequest } from '../../shared/logger/logger.js';
 import { parseInput } from '../../shared/validation/parse.js';
@@ -43,6 +43,10 @@ export async function handleSearchRequest(
   const logger = createLoggerFromRequest(event, context, {
     domain: 'search',
   });
+
+  if (request.method === 'OPTIONS') {
+    return preflight();
+  }
 
   try {
     const auth = requireAuth(event, context);
