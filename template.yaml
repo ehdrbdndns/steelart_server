@@ -113,6 +113,7 @@ Resources:
         AllowOrigins:
           - http://localhost:8080
           - http://localhost:8081
+        AllowCredentials: true
         AllowMethods:
           - GET
           - POST

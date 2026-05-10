@@ -19,7 +19,7 @@ import {
 import { authRepository } from '../../domains/auth/repository.js';
 import { usersRepository } from '../../domains/users/repository.js';
 import { createHttpRequest } from '../../shared/api/route.js';
-import { fail, ok } from '../../shared/api/response.js';
+import { fail, ok, preflight } from '../../shared/api/response.js';
 import { requireAuth } from '../../shared/auth/guard.js';
 import { createAppleAuthProvider } from '../../shared/auth/providers/apple.js';
 import { createKakaoAuthProvider } from '../../shared/auth/providers/kakao.js';
@@ -55,6 +55,10 @@ export async function handleAuthRequest(
   const logger = createLoggerFromRequest(event, context, {
     domain: 'auth',
   });
+
+  if (request.method === 'OPTIONS') {
+    return preflight();
+  }
 
   try {
     if (request.path === '/v1/dev/auth/login') {
