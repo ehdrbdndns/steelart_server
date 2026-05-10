@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { loadEnv } from '../../src/shared/env/server.js';
+import {
+  isDevLoginEnabled,
+  loadEnv,
+} from '../../src/shared/env/server.js';
 import { AppError } from '../../src/shared/api/errors.js';
 
 // 환경 변수는 필요한 타입으로 파싱되고 강제 변환되어야 한다.
@@ -35,4 +38,16 @@ test('loadEnv throws AppError on missing required variables', () => {
       }),
     (error: unknown) => error instanceof AppError && error.code === 'VALIDATION_ERROR',
   );
+});
+
+// 개발용 로그인은 명시된 비운영 환경에서만 활성화되어야 한다.
+test('isDevLoginEnabled allows only non-production development environments', () => {
+  assert.equal(isDevLoginEnabled('local'), true);
+  assert.equal(isDevLoginEnabled('dev'), true);
+  assert.equal(isDevLoginEnabled('staging'), true);
+  assert.equal(isDevLoginEnabled('test'), true);
+  assert.equal(isDevLoginEnabled('integration'), true);
+  assert.equal(isDevLoginEnabled('production'), false);
+  assert.equal(isDevLoginEnabled('prod'), false);
+  assert.equal(isDevLoginEnabled(''), false);
 });

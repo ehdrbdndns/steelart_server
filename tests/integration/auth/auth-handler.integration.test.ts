@@ -21,6 +21,7 @@ import {
   verifyAccessToken,
 } from '../../../src/shared/auth/token.js';
 import { getPool } from '../../../src/shared/db/pool.js';
+import { resetEnvForTests } from '../../../src/shared/env/server.js';
 import {
   closeIntegrationDatabase,
   getIntegrationSkipReason,
@@ -179,6 +180,120 @@ test('auth handler creates user and auth records for POST /v1/auth/kakao', { ski
   assert.equal(refreshTokenRows.length, 1);
   assert.equal(refreshTokenRows[0]?.user_id, body.data.user.id);
   assert.equal(refreshTokenRows[0]?.refresh_token, body.data.refreshToken);
+});
+
+// 개발용 로그인 handler는 기본 dev 사용자를 만들고 실제 refresh token row를 저장해야 한다.
+test('dev auth login creates default dev user and persisted refresh token outside production', { skip: integrationSkipReason }, async () => {
+  process.env.APP_ENV = 'dev';
+  resetEnvForTests();
+
+  const response = await handleAuthRequest(
+    createEvent({
+      rawPath: '/v1/dev/auth/login',
+      requestContext: {
+        ...createEvent().requestContext,
+        http: {
+          ...createEvent().requestContext.http,
+          method: 'POST',
+          path: '/v1/dev/auth/login',
+        },
+      },
+    }),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+
+  assert.equal(response.statusCode, 200);
+
+  const body = JSON.parse(response.body as string) as {
+    data: {
+      onboardingCompleted: boolean;
+      refreshToken: string;
+      token: string;
+      user: {
+        age_group: string | null;
+        id: number;
+        language: string;
+        nickname: string | null;
+        notifications_enabled: boolean;
+        residency: string | null;
+      };
+    };
+  };
+
+  assert.equal(body.data.onboardingCompleted, true);
+  assert.deepEqual(body.data.user, {
+    age_group: '30S',
+    id: body.data.user.id,
+    language: 'ko',
+    nickname: 'dev-user',
+    notifications_enabled: true,
+    residency: 'POHANG',
+  });
+
+  const claims = verifyAccessToken(body.data.token);
+  assert.equal(claims.sub, body.data.user.id);
+
+  const refreshTokenRows = await queryRows<RefreshTokenRow>(
+    `SELECT user_id, refresh_token
+      FROM user_refresh_tokens
+      WHERE user_id = ?`,
+    [body.data.user.id],
+  );
+
+  assert.equal(refreshTokenRows.length, 1);
+  assert.equal(refreshTokenRows[0]?.refresh_token, body.data.refreshToken);
+});
+
+// 개발용 로그인 handler는 지정한 기존 userId로도 실제 token pair를 발급해야 한다.
+test('dev auth login can issue tokens for an existing user id', { skip: integrationSkipReason }, async () => {
+  process.env.APP_ENV = 'staging';
+  resetEnvForTests();
+  const now = new Date();
+  const [insertResult] = await getPool().execute<ResultSetHeader>(
+    `INSERT INTO users (
+        nickname,
+        residency,
+        age_group,
+        language,
+        notifications_enabled,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ['seed-dev-user', 'POHANG', '20S', 'ko', 1, now, now],
+  );
+
+  const response = await handleAuthRequest(
+    createEvent({
+      body: JSON.stringify({
+        userId: insertResult.insertId,
+      }),
+      rawPath: '/v1/dev/auth/login',
+      requestContext: {
+        ...createEvent().requestContext,
+        http: {
+          ...createEvent().requestContext.http,
+          method: 'POST',
+          path: '/v1/dev/auth/login',
+        },
+      },
+    }),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+
+  assert.equal(response.statusCode, 200);
+
+  const body = JSON.parse(response.body as string) as {
+    data: {
+      token: string;
+      user: {
+        id: number;
+      };
+    };
+  };
+  const claims = verifyAccessToken(body.data.token);
+
+  assert.equal(body.data.user.id, insertResult.insertId);
+  assert.equal(claims.sub, insertResult.insertId);
 });
 
 // refresh handler는 저장된 refresh token으로 새 access token을 발급해야 한다.

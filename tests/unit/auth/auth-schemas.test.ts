@@ -5,6 +5,7 @@ import { AppError } from '../../../src/shared/api/errors.js';
 import { parseInput } from '../../../src/shared/validation/parse.js';
 import {
   appleLoginSchema,
+  devLoginSchema,
   kakaoLoginSchema,
   refreshTokenSchema,
 } from '../../../src/domains/auth/schemas.js';
@@ -48,4 +49,22 @@ test('apple login schema rejects blank authorization code', () => {
     }),
     (error: unknown) => error instanceof AppError && error.code === 'VALIDATION_ERROR',
   );
+});
+
+// 개발용 로그인은 body 없이 기본 dev user 로그인을 허용해야 한다.
+test('devLoginSchema accepts an empty body as default dev login', () => {
+  assert.deepEqual(devLoginSchema.parse(undefined), {});
+});
+
+// 개발용 로그인은 양의 정수 userId만 허용해야 한다.
+test('devLoginSchema accepts a positive integer userId', () => {
+  assert.deepEqual(devLoginSchema.parse({ userId: 12 }), {
+    userId: 12,
+  });
+});
+
+// 개발용 로그인은 0 이하 userId를 거부해야 한다.
+test('devLoginSchema rejects non-positive userId values', () => {
+  assert.throws(() => devLoginSchema.parse({ userId: 0 }));
+  assert.throws(() => devLoginSchema.parse({ userId: -1 }));
 });

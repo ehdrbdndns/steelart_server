@@ -61,6 +61,9 @@ test('refreshAccessToken returns new access token for valid refresh token', asyn
   applyServerTestEnv();
   const user = createUser();
   const authRepository: AuthRepository = {
+    async createDefaultDevUser() {
+      throw new Error('not used');
+    },
     async createUserWithIdentityAndRefreshToken() {
       throw new Error('not used');
     },
@@ -77,6 +80,12 @@ test('refreshAccessToken returns new access token for valid refresh token', asyn
         updated_at: new Date('2026-03-14T00:00:00.000Z'),
         user_id: user.id,
       };
+    },
+    async findDefaultDevUser() {
+      throw new Error('not used');
+    },
+    async findUserById() {
+      throw new Error('not used');
     },
     async findUserByProviderIdentity() {
       throw new Error('not used');
@@ -110,6 +119,9 @@ test('refreshAccessToken throws REFRESH_TOKEN_EXPIRED for stale refresh token', 
   applyServerTestEnv();
   const user = createUser();
   const authRepository: AuthRepository = {
+    async createDefaultDevUser() {
+      throw new Error('not used');
+    },
     async createUserWithIdentityAndRefreshToken() {
       throw new Error('not used');
     },
@@ -126,6 +138,12 @@ test('refreshAccessToken throws REFRESH_TOKEN_EXPIRED for stale refresh token', 
         updated_at: new Date('2026-03-14T00:00:00.000Z'),
         user_id: user.id,
       };
+    },
+    async findDefaultDevUser() {
+      throw new Error('not used');
+    },
+    async findUserById() {
+      throw new Error('not used');
     },
     async findUserByProviderIdentity() {
       throw new Error('not used');
@@ -159,6 +177,9 @@ test('loginWithKakao stores refresh token for an existing user', async () => {
   });
   let storedRefreshToken: string | null = null;
   const authRepository: AuthRepository = {
+    async createDefaultDevUser() {
+      throw new Error('not used');
+    },
     async createUserWithIdentityAndRefreshToken() {
       throw new Error('should not create a new user');
     },
@@ -166,6 +187,12 @@ test('loginWithKakao stores refresh token for an existing user', async () => {
       storedRefreshToken = refreshToken;
     },
     async findRefreshToken() {
+      throw new Error('not used');
+    },
+    async findDefaultDevUser() {
+      throw new Error('not used');
+    },
+    async findUserById() {
       throw new Error('not used');
     },
     async findUserByProviderIdentity() {
@@ -213,4 +240,64 @@ test('loginWithKakao stores refresh token for an existing user', async () => {
 
   assert.equal(claims.sub, 1);
   assert.equal(claims.type, 'access');
+});
+
+// 개발용 로그인은 기존 사용자에게 실제 access token과 refresh token을 발급해야 한다.
+test('loginForDev issues real tokens for an existing user', async () => {
+  applyServerTestEnv();
+  const user = createUser({
+    id: 12,
+    nickname: 'dev-existing',
+  });
+  let storedRefreshToken: string | null = null;
+  const authRepository: AuthRepository = {
+    async createDefaultDevUser() {
+      throw new Error('not used');
+    },
+    async createUserWithIdentityAndRefreshToken() {
+      throw new Error('not used');
+    },
+    async createRefreshTokenRecord(userId, refreshToken) {
+      assert.equal(userId, 12);
+      storedRefreshToken = refreshToken;
+    },
+    async findDefaultDevUser() {
+      throw new Error('not used');
+    },
+    async findRefreshToken() {
+      throw new Error('not used');
+    },
+    async findUserById() {
+      return user;
+    },
+    async findUserByProviderIdentity() {
+      throw new Error('not used');
+    },
+  };
+  const usersRepository: Pick<UsersRepository, 'findUserById'> = {
+    async findUserById() {
+      return user;
+    },
+  };
+  const service = createAuthService({
+    appleProvider: createUnusedAppleProvider(),
+    authRepository,
+    kakaoProvider: createUnusedKakaoProvider(),
+    usersRepository,
+  });
+
+  const result = await service.loginForDev({
+    userId: 12,
+  });
+
+  assert.equal(result.refreshToken, storedRefreshToken);
+  assert.equal(result.user.id, 12);
+  assert.equal(result.user.nickname, 'dev-existing');
+  assert.equal(result.onboardingCompleted, true);
+
+  const claims = verifyAccessToken(result.token, {
+    secret: 'test-secret',
+  });
+
+  assert.equal(claims.sub, 12);
 });
