@@ -65,6 +65,21 @@ function createAuthServiceStub(): AuthService {
     async loginWithApple() {
       throw new Error('not used');
     },
+    async loginForDev() {
+      return {
+        onboardingCompleted: true,
+        refreshToken: 'refresh-token',
+        token: 'access-token',
+        user: {
+          age_group: '30S',
+          id: 99,
+          language: 'ko',
+          nickname: 'dev-user',
+          notifications_enabled: true,
+          residency: 'POHANG',
+        },
+      };
+    },
     async loginWithKakao() {
       throw new Error('not used');
     },
@@ -156,4 +171,71 @@ test('auth handler resolves proxied auth route path from rawPath', async () => {
 
   assert.equal(response.statusCode, 200);
   assert.equal(JSON.parse(response.body as string).data.user.id, 12);
+});
+
+// dev 환경에서는 개발용 로그인 endpoint가 기존 로그인 응답 shape을 반환해야 한다.
+test('auth handler returns real-shaped login response for POST /v1/dev/auth/login in dev env', async () => {
+  applyServerTestEnv();
+  process.env.APP_ENV = 'dev';
+  resetEnvForTests();
+
+  const response = await handleAuthRequest(
+    createEvent({
+      body: JSON.stringify({
+        userId: 99,
+      }),
+      rawPath: '/v1/dev/auth/login',
+      requestContext: {
+        ...createEvent().requestContext,
+        http: {
+          ...createEvent().requestContext.http,
+          method: 'POST',
+          path: '/v1/dev/auth/login',
+        },
+      },
+    }),
+    {} as never,
+    createAuthServiceStub(),
+  ) as APIGatewayProxyStructuredResultV2;
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(JSON.parse(response.body as string).data, {
+    onboardingCompleted: true,
+    refreshToken: 'refresh-token',
+    token: 'access-token',
+    user: {
+      age_group: '30S',
+      id: 99,
+      language: 'ko',
+      nickname: 'dev-user',
+      notifications_enabled: true,
+      residency: 'POHANG',
+    },
+  });
+});
+
+// production 환경에서는 개발용 로그인 endpoint 존재를 숨겨야 한다.
+test('auth handler hides POST /v1/dev/auth/login in production env', async () => {
+  applyServerTestEnv();
+  process.env.APP_ENV = 'production';
+  resetEnvForTests();
+
+  const response = await handleAuthRequest(
+    createEvent({
+      rawPath: '/v1/dev/auth/login',
+      requestContext: {
+        ...createEvent().requestContext,
+        http: {
+          ...createEvent().requestContext.http,
+          method: 'POST',
+          path: '/v1/dev/auth/login',
+        },
+      },
+    }),
+    {} as never,
+    createAuthServiceStub(),
+  ) as APIGatewayProxyStructuredResultV2;
+
+  assert.equal(response.statusCode, 404);
+  assert.equal(JSON.parse(response.body as string).error.code, 'NOT_FOUND');
 });
