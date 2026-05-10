@@ -125,6 +125,13 @@ Resources:
       CodeUri: ./
       Handler: src/lambdas/auth/handler.handler
       Events:
+        DevAuthLoginRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: POST
+            Path: /v1/dev/auth/login
+            PayloadFormatVersion: '2.0'
         AuthProxyRoute:
           Type: HttpApi
           Properties:

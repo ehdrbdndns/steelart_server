@@ -14,3 +14,7 @@ export const appleLoginSchema = z.object({
 export const refreshTokenSchema = z.object({
   refreshToken: nonEmptyStringSchema,
 }).strict();
+
+export const devLoginSchema = z.object({
+  userId: z.number().int().positive().optional(),
+}).strict().default({});

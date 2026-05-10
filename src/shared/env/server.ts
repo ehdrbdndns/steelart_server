@@ -41,3 +41,15 @@ export function getEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv {
 export function resetEnvForTests(): void {
   cachedEnv = null;
 }
+
+const DEV_LOGIN_ENABLED_APP_ENVS = new Set([
+  'local',
+  'dev',
+  'staging',
+  'test',
+  'integration',
+]);
+
+export function isDevLoginEnabled(appEnv: string): boolean {
+  return DEV_LOGIN_ENABLED_APP_ENVS.has(appEnv.trim().toLowerCase());
+}

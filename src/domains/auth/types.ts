@@ -19,6 +19,10 @@ export interface RefreshTokenInput {
   refreshToken: string;
 }
 
+export interface DevLoginInput {
+  userId?: number;
+}
+
 export interface SocialIdentity {
   provider: AuthProvider;
   providerUserId: string;
