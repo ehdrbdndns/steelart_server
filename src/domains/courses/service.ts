@@ -4,11 +4,14 @@ import {
   CHECKIN_ALLOWED_RADIUS_METERS,
   type CourseCheckinInput,
   type CourseCheckinResponse,
+  type DeleteCourseResponse,
+  type FavoriteCoursesResponse,
   type CourseDetail,
   type CourseLikeResponse,
   type CourseListInput,
   type CourseListResponse,
   type CreateCourseInput,
+  type RecentCommunityCourseListInput,
   type UpdateCourseInput,
 } from './types.js';
 import {
@@ -16,15 +19,20 @@ import {
   mapCourseDetail,
   mapCourseLikeResponse,
   mapCourseListResponse,
+  mapDeleteCourseResponse,
+  mapFavoriteCoursesResponse,
 } from './mapper.js';
 import type { CoursesRepository } from './repository.js';
 
 export interface CoursesService {
   checkInCourse(courseId: number, input: CourseCheckinInput, userId: number): Promise<CourseCheckinResponse>;
   createCourse(input: CreateCourseInput, userId: number): Promise<CourseDetail>;
+  deleteCourse(courseId: number, userId: number): Promise<DeleteCourseResponse>;
   getCourseDetail(courseId: number, userId: number): Promise<CourseDetail>;
   likeCourse(courseId: number, userId: number): Promise<CourseLikeResponse>;
+  listFavoriteCourses(userId: number): Promise<FavoriteCoursesResponse>;
   listMyCourses(input: CourseListInput, userId: number): Promise<CourseListResponse>;
+  listRecentCommunityCourses(input: RecentCommunityCourseListInput, userId: number): Promise<CourseListResponse>;
   listRecommendedCourses(input: CourseListInput, userId: number): Promise<CourseListResponse>;
   unlikeCourse(courseId: number, userId: number): Promise<CourseLikeResponse>;
   updateCourse(courseId: number, input: UpdateCourseInput, userId: number): Promise<CourseDetail>;
@@ -133,6 +141,28 @@ export function createCoursesService(
     }
   }
 
+  async function assertCourseDeletable(courseId: number, userId: number): Promise<void> {
+    const course = await dependencies.coursesRepository.findCourseRecord(courseId);
+
+    if (!course) {
+      throw new AppError('NOT_FOUND', {
+        message: 'Course not found',
+      });
+    }
+
+    if (course.is_official) {
+      throw new AppError('FORBIDDEN', {
+        message: 'Official course cannot be deleted',
+      });
+    }
+
+    if (course.created_by_user_id !== userId) {
+      throw new AppError('FORBIDDEN', {
+        message: 'You can only delete your own course',
+      });
+    }
+  }
+
   return {
     async checkInCourse(courseId, input, userId) {
       const course = await dependencies.coursesRepository.findCourseRecord(courseId);
@@ -204,6 +234,13 @@ export function createCoursesService(
       return loadCourseDetail(courseId, userId);
     },
 
+    async deleteCourse(courseId, userId) {
+      await assertCourseDeletable(courseId, userId);
+      await dependencies.coursesRepository.softDeleteCourse(courseId);
+
+      return mapDeleteCourseResponse(courseId);
+    },
+
     async getCourseDetail(courseId, userId) {
       return loadCourseDetail(courseId, userId);
     },
@@ -215,9 +252,19 @@ export function createCoursesService(
       return mapCourseLikeResponse(courseId, true);
     },
 
+    async listFavoriteCourses(userId) {
+      const result = await dependencies.coursesRepository.listFavoriteCourses(userId);
+      return mapFavoriteCoursesResponse(result.officialCourses, result.communityCourses);
+    },
+
     async listMyCourses(input, userId) {
       const result = await dependencies.coursesRepository.listMyCourses(input, userId);
       return mapCourseListResponse(result.courses, input.page, input.size, result.total);
+    },
+
+    async listRecentCommunityCourses(input, userId) {
+      const result = await dependencies.coursesRepository.listRecentCommunityCourses(input, userId);
+      return mapCourseListResponse(result.courses, 1, input.size, result.total);
     },
 
     async listRecommendedCourses(input, userId) {

@@ -341,6 +341,20 @@ Resources:
             Method: ANY
             Path: /v1/courses/mine
             PayloadFormatVersion: '2.0'
+        CoursesCommunityRecentRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v1/courses/community/recent
+            PayloadFormatVersion: '2.0'
+        CoursesFavoritesRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v1/courses/favorites
+            PayloadFormatVersion: '2.0'
         CoursesDetailRoute:
           Type: HttpApi
           Properties:

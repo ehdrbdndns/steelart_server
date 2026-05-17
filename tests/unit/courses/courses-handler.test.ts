@@ -81,6 +81,12 @@ function createCoursesServiceStub(overrides: Partial<CoursesService> = {}): Cour
         title_ko: '코스',
       };
     },
+    async deleteCourse(courseId) {
+      return {
+        courseId,
+        deleted: true,
+      };
+    },
     async getCourseDetail(courseId) {
       return {
         description_en: 'desc',
@@ -145,6 +151,30 @@ function createCoursesServiceStub(overrides: Partial<CoursesService> = {}): Cour
         total: 1,
       };
     },
+    async listFavoriteCourses() {
+      return {
+        communityCourses: [
+          {
+            description_en: 'My route',
+            description_ko: '내 코스',
+            end_place_name_en: 'Space Walk',
+            end_place_name_ko: '스페이스워크',
+            id: 2,
+            is_official: false,
+            liked: true,
+            stampProgress: null,
+            start_place_name_en: 'Yeongildae',
+            start_place_name_ko: '영일대',
+            thumbnail_image_height: 800,
+            thumbnail_image_url: 'https://example.com/my-course.jpg',
+            thumbnail_image_width: 1200,
+            title_en: 'My Course',
+            title_ko: '내 코스',
+          },
+        ],
+        officialCourses: [],
+      };
+    },
     async listRecommendedCourses(_input) {
       return {
         courses: [
@@ -171,6 +201,32 @@ function createCoursesServiceStub(overrides: Partial<CoursesService> = {}): Cour
         ],
         page: 1,
         size: 20,
+        total: 1,
+      };
+    },
+    async listRecentCommunityCourses(_input) {
+      return {
+        courses: [
+          {
+            description_en: 'Community route',
+            description_ko: '시민 코스',
+            end_place_name_en: 'Space Walk',
+            end_place_name_ko: '스페이스워크',
+            id: 3,
+            is_official: false,
+            liked: false,
+            stampProgress: null,
+            start_place_name_en: 'Yeongildae',
+            start_place_name_ko: '영일대',
+            thumbnail_image_height: 800,
+            thumbnail_image_url: 'https://example.com/community-course.jpg',
+            thumbnail_image_width: 1200,
+            title_en: 'Community Course',
+            title_ko: '시민 코스',
+          },
+        ],
+        page: 1,
+        size: 10,
         total: 1,
       };
     },

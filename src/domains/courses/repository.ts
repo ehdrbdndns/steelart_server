@@ -10,10 +10,12 @@ import type {
   CourseCheckinTarget,
   CourseDetail,
   CourseDetailItem,
+  FavoriteCoursesResponse,
   CourseListInput,
   CourseListItem,
   CourseRecord,
   CreateCourseInput,
+  RecentCommunityCourseListInput,
   StampProgress,
   UpdateCourseInput,
 } from './types.js';
@@ -341,11 +343,17 @@ export interface CoursesRepository {
   findCourseRecord(courseId: number): Promise<CourseRecord | null>;
   findCourseStampProgress(courseId: number, userId: number): Promise<StampProgress>;
   listActiveArtworkIds(artworkIds: number[]): Promise<number[]>;
+  listFavoriteCourses(userId: number): Promise<FavoriteCoursesResponse>;
   listMyCourses(input: CourseListInput, userId: number): Promise<{ courses: CourseListItem[]; total: number }>;
+  listRecentCommunityCourses(
+    input: RecentCommunityCourseListInput,
+    userId: number,
+  ): Promise<{ courses: CourseListItem[]; total: number }>;
   listRecommendedCourses(
     input: CourseListInput,
     userId: number,
   ): Promise<{ courses: CourseListItem[]; total: number }>;
+  softDeleteCourse(courseId: number): Promise<void>;
   updateCourse(courseId: number, input: UpdateCourseInput): Promise<void>;
 }
 
@@ -630,6 +638,38 @@ export const coursesRepository: CoursesRepository = {
     });
   },
 
+  async listFavoriteCourses(userId) {
+    return withConnection(async (connection) => {
+      const [rows] = await connection.execute<CourseListBaseRow[]>(
+        `SELECT
+            c.id,
+            c.title_ko,
+            c.title_en,
+            c.description_ko,
+            c.description_en,
+            c.is_official
+         FROM course_likes cl
+         INNER JOIN courses c
+           ON c.id = cl.course_id
+          AND c.deleted_at IS NULL
+         WHERE cl.user_id = ?
+         ORDER BY cl.created_at DESC, c.created_at DESC, c.id DESC`,
+        [userId],
+      );
+      const officialRows = rows.filter((row) => row.is_official === true || row.is_official === 1);
+      const communityRows = rows.filter((row) => row.is_official !== true && row.is_official !== 1);
+      const officialIds = officialRows.map((row) => row.id);
+      const communityIds = communityRows.map((row) => row.id);
+      const officialMetaByCourseId = await hydrateCourseListMetaRows(connection, officialIds, userId, true);
+      const communityMetaByCourseId = await hydrateCourseListMetaRows(connection, communityIds, userId, false);
+
+      return {
+        communityCourses: communityRows.map((row) => mapCourseListRow(row, communityMetaByCourseId.get(row.id), false)),
+        officialCourses: officialRows.map((row) => mapCourseListRow(row, officialMetaByCourseId.get(row.id), true)),
+      };
+    });
+  },
+
   async listMyCourses(input, userId) {
     return withConnection(async (connection) => {
       const offset = (input.page - 1) * input.size;
@@ -646,6 +686,41 @@ export const coursesRepository: CoursesRepository = {
            AND c.is_official = 0
            AND c.deleted_at IS NULL`,
         [userId],
+      );
+      const courseIds = rows.map((row) => row.id);
+      const metaByCourseId = await hydrateCourseListMetaRows(connection, courseIds, userId, false);
+
+      return {
+        courses: rows.map((row) => mapCourseListRow(row, metaByCourseId.get(row.id), false)),
+        total: countRows[0]?.total ?? 0,
+      };
+    });
+  },
+
+  async listRecentCommunityCourses(input, userId) {
+    return withConnection(async (connection) => {
+      const [rows] = await connection.execute<CourseListBaseRow[]>(
+        `SELECT
+            c.id,
+            c.title_ko,
+            c.title_en,
+            c.description_ko,
+            c.description_en,
+            c.is_official
+         FROM courses c
+         WHERE c.is_official = 0
+           AND c.created_by_user_id IS NOT NULL
+           AND c.deleted_at IS NULL
+         ORDER BY c.created_at DESC, c.id DESC
+         LIMIT ?`,
+        [input.size],
+      );
+      const [countRows] = await connection.execute<CountRow[]>(
+        `SELECT COUNT(*) AS total
+         FROM courses c
+         WHERE c.is_official = 0
+           AND c.created_by_user_id IS NOT NULL
+           AND c.deleted_at IS NULL`,
       );
       const courseIds = rows.map((row) => row.id);
       const metaByCourseId = await hydrateCourseListMetaRows(connection, courseIds, userId, false);
@@ -679,6 +754,19 @@ export const coursesRepository: CoursesRepository = {
         courses: rows.map((row) => mapCourseListRow(row, metaByCourseId.get(row.id), true)),
         total: countRows[0]?.total ?? 0,
       };
+    });
+  },
+
+  async softDeleteCourse(courseId) {
+    await withConnection(async (connection) => {
+      await connection.execute<ResultSetHeader>(
+        `UPDATE courses
+         SET deleted_at = NOW(),
+             updated_at = NOW()
+         WHERE id = ?
+           AND deleted_at IS NULL`,
+        [courseId],
+      );
     });
   },
 

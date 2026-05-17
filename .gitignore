@@ -30,6 +30,7 @@ test-results/
 .env
 .env.*
 !.env.example
+!.env.integration.example
 *.pem
 *.key
 

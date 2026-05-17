@@ -56,17 +56,17 @@ function createEvent(
     ? null
     : path.match(/^\/v1\/courses\/([^/]+)$/);
   const pathParameters = likeMatch
-    ? { courseId: likeMatch[1] }
-    : checkinMatch
-      ? { courseId: checkinMatch[1] }
-      : detailMatch && detailMatch[1] !== 'recommended' && detailMatch[1] !== 'mine'
-        ? { courseId: detailMatch[1] }
-        : {};
+      ? { courseId: likeMatch[1] }
+      : checkinMatch
+        ? { courseId: checkinMatch[1] }
+        : detailMatch && !['favorites', 'mine', 'recommended'].includes(detailMatch[1])
+          ? { courseId: detailMatch[1] }
+          : {};
   const routePath = likeMatch
     ? '/v1/courses/{courseId}/like'
     : checkinMatch
       ? '/v1/courses/{courseId}/checkins'
-      : detailMatch && detailMatch[1] !== 'recommended' && detailMatch[1] !== 'mine'
+      : detailMatch && !['favorites', 'mine', 'recommended'].includes(detailMatch[1])
         ? '/v1/courses/{courseId}'
         : path;
 
@@ -144,6 +144,40 @@ async function insertUser(nickname: string): Promise<number> {
         updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [nickname, 'POHANG', '30S', 'ko', 1, now, now],
+  );
+
+  return result.insertId;
+}
+
+async function insertCommunityCourse(
+  userId: number,
+  index: number,
+  createdAt: Date,
+  deletedAt: Date | null = null,
+): Promise<number> {
+  const [result] = await getPool().execute<ResultSetHeader>(
+    `INSERT INTO courses (
+        title_ko,
+        title_en,
+        description_ko,
+        description_en,
+        is_official,
+        created_by_user_id,
+        likes_count,
+        deleted_at,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, 0, ?, 0, ?, ?, ?)`,
+    [
+      `시민 추천 코스 ${index}`,
+      `Community Course ${index}`,
+      `시민 추천 코스 설명 ${index}`,
+      `Community course description ${index}`,
+      userId,
+      deletedAt,
+      createdAt,
+      createdAt,
+    ],
   );
 
   return result.insertId;
@@ -465,6 +499,163 @@ if (integrationSkipReason) {
     assert.equal(body.data.courses[0].liked, true);
     assert.equal(body.data.courses[0].stampProgress, null);
     assert.equal('stamped' in body.data.courses[0], false);
+  });
+
+  test('recent community courses endpoint returns latest 10 public user courses', async () => {
+    const token = signAccessToken(seeded.userId);
+    const insertedCourseIds: number[] = [];
+
+    for (let index = 1; index <= 11; index += 1) {
+      insertedCourseIds.push(
+        await insertCommunityCourse(
+          seeded.otherUserId,
+          index,
+          new Date(Date.UTC(2026, 2, 19, 0, index, 0)),
+        ),
+      );
+    }
+
+    await getPool().execute<ResultSetHeader>(
+      `INSERT INTO courses (
+          title_ko,
+          title_en,
+          description_ko,
+          description_en,
+          is_official,
+          created_by_user_id,
+          likes_count,
+          deleted_at,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, 1, NULL, 0, NULL, ?, ?)`,
+      [
+        '최신 공식 코스',
+        'Latest Official Course',
+        '제외되어야 하는 공식 코스',
+        'Official course to exclude',
+        new Date(Date.UTC(2026, 2, 19, 1, 0, 0)),
+        new Date(Date.UTC(2026, 2, 19, 1, 0, 0)),
+      ],
+    );
+    const deletedCourseId = await insertCommunityCourse(
+      seeded.otherUserId,
+      12,
+      new Date(Date.UTC(2026, 2, 19, 1, 1, 0)),
+      new Date(Date.UTC(2026, 2, 19, 1, 2, 0)),
+    );
+
+    const response = await handleCoursesRequest(
+      createEvent('/v1/courses/community/recent', 'size=10', token),
+      {} as Context,
+    ) as APIGatewayProxyStructuredResultV2;
+    const body = JSON.parse(response.body as string);
+    const expectedIds = insertedCourseIds.slice(1).reverse();
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(body.data.page, 1);
+    assert.equal(body.data.size, 10);
+    assert.equal(body.data.total, 13);
+    assert.deepEqual(
+      body.data.courses.map((course: { id: number }) => course.id),
+      expectedIds,
+    );
+    assert.equal(body.data.courses.every((course: { is_official: boolean }) => !course.is_official), true);
+    assert.equal(body.data.courses.every((course: { stampProgress: null }) => course.stampProgress === null), true);
+    assert.equal(body.data.courses.some((course: { id: number }) => course.id === deletedCourseId), false);
+    assert.equal(body.data.courses.some((course: { id: number }) => course.id === seeded.officialCourseId), false);
+  });
+
+  test('favorites endpoint returns liked official and community courses in separate arrays', async () => {
+    const token = signAccessToken(seeded.userId);
+
+    const response = await handleCoursesRequest(
+      createEvent('/v1/courses/favorites', '', token),
+      {} as Context,
+    ) as APIGatewayProxyStructuredResultV2;
+    const body = JSON.parse(response.body as string);
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(
+      body.data.officialCourses.map((course: { id: number }) => course.id),
+      [seeded.officialCourseId],
+    );
+    assert.deepEqual(
+      body.data.communityCourses.map((course: { id: number }) => course.id),
+      [seeded.myCourseId],
+    );
+    assert.equal(body.data.officialCourses[0].liked, true);
+    assert.deepEqual(body.data.officialCourses[0].stampProgress, {
+      checkedInCount: 1,
+      totalCount: 2,
+    });
+    assert.equal(body.data.communityCourses[0].liked, true);
+    assert.equal(body.data.communityCourses[0].stampProgress, null);
+  });
+
+  test('owner can soft-delete custom course and deleted course disappears from course reads', async () => {
+    const token = signAccessToken(seeded.userId);
+
+    const response = await handleCoursesRequest(
+      createEvent(`/v1/courses/${seeded.myCourseId}`, '', token, 'DELETE'),
+      {} as Context,
+    ) as APIGatewayProxyStructuredResultV2;
+    const body = JSON.parse(response.body as string);
+    const deletedRows = await queryRows<RowDataPacket>(
+      `SELECT deleted_at
+       FROM courses
+       WHERE id = ?`,
+      [seeded.myCourseId],
+    );
+    const myCoursesResponse = await handleCoursesRequest(
+      createEvent('/v1/courses/mine', 'page=1&size=20', token),
+      {} as Context,
+    ) as APIGatewayProxyStructuredResultV2;
+    const communityResponse = await handleCoursesRequest(
+      createEvent('/v1/courses/community/recent', 'size=10', token),
+      {} as Context,
+    ) as APIGatewayProxyStructuredResultV2;
+    const favoritesResponse = await handleCoursesRequest(
+      createEvent('/v1/courses/favorites', '', token),
+      {} as Context,
+    ) as APIGatewayProxyStructuredResultV2;
+    const detailResponse = await handleCoursesRequest(
+      createEvent(`/v1/courses/${seeded.myCourseId}`, '', token),
+      {} as Context,
+    ) as APIGatewayProxyStructuredResultV2;
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(body.data, {
+      courseId: seeded.myCourseId,
+      deleted: true,
+    });
+    assert.notEqual(deletedRows[0]?.deleted_at, null);
+    assert.equal(JSON.parse(myCoursesResponse.body as string).data.total, 0);
+    assert.equal(
+      JSON.parse(communityResponse.body as string).data.courses.some(
+        (course: { id: number }) => course.id === seeded.myCourseId,
+      ),
+      false,
+    );
+    assert.equal(JSON.parse(favoritesResponse.body as string).data.communityCourses.length, 0);
+    assert.equal(detailResponse.statusCode, 404);
+  });
+
+  test('official and non-owner course delete are forbidden', async () => {
+    const token = signAccessToken(seeded.userId);
+
+    const officialResponse = await handleCoursesRequest(
+      createEvent(`/v1/courses/${seeded.officialCourseId}`, '', token, 'DELETE'),
+      {} as Context,
+    ) as APIGatewayProxyStructuredResultV2;
+    const nonOwnerResponse = await handleCoursesRequest(
+      createEvent(`/v1/courses/${seeded.otherUserCourseId}`, '', token, 'DELETE'),
+      {} as Context,
+    ) as APIGatewayProxyStructuredResultV2;
+
+    assert.equal(officialResponse.statusCode, 403);
+    assert.equal(JSON.parse(officialResponse.body as string).error.code, 'FORBIDDEN');
+    assert.equal(nonOwnerResponse.statusCode, 403);
+    assert.equal(JSON.parse(nonOwnerResponse.body as string).error.code, 'FORBIDDEN');
   });
 
   test('course detail endpoint returns seq order, liked, editable, and checkedIn state', async () => {
