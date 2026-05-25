@@ -4,6 +4,8 @@ import {
   COURSE_LIST_DEFAULT_PAGE,
   COURSE_LIST_DEFAULT_SIZE,
   COURSE_LIST_MAX_SIZE,
+  RECENT_COMMUNITY_COURSE_DEFAULT_SIZE,
+  RECENT_COMMUNITY_COURSE_MAX_SIZE,
 } from './types.js';
 
 const courseMutationItemSchema = z.object({
@@ -52,6 +54,15 @@ function buildCourseItemsSchema() {
 export const courseListQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(COURSE_LIST_DEFAULT_PAGE),
   size: z.coerce.number().int().positive().max(COURSE_LIST_MAX_SIZE).default(COURSE_LIST_DEFAULT_SIZE),
+}).strict();
+
+export const recentCommunityCourseListQuerySchema = z.object({
+  size: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(RECENT_COMMUNITY_COURSE_MAX_SIZE)
+    .default(RECENT_COMMUNITY_COURSE_DEFAULT_SIZE),
 }).strict();
 
 export const courseIdParamSchema = z.object({

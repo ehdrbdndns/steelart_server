@@ -1,6 +1,8 @@
 export const COURSE_LIST_DEFAULT_PAGE = 1;
 export const COURSE_LIST_DEFAULT_SIZE = 20;
 export const COURSE_LIST_MAX_SIZE = 100;
+export const RECENT_COMMUNITY_COURSE_DEFAULT_SIZE = 10;
+export const RECENT_COMMUNITY_COURSE_MAX_SIZE = 10;
 export const CHECKIN_BASE_RADIUS_METERS = 10;
 export const CHECKIN_TOLERANCE_METERS = 5;
 export const CHECKIN_ALLOWED_RADIUS_METERS =
@@ -8,6 +10,10 @@ export const CHECKIN_ALLOWED_RADIUS_METERS =
 
 export interface CourseListInput {
   page: number;
+  size: number;
+}
+
+export interface RecentCommunityCourseListInput {
   size: number;
 }
 
@@ -39,6 +45,11 @@ export interface CourseListResponse {
   page: number;
   size: number;
   total: number;
+}
+
+export interface FavoriteCoursesResponse {
+  communityCourses: CourseListItem[];
+  officialCourses: CourseListItem[];
 }
 
 export interface CourseDetailItem {
@@ -96,6 +107,11 @@ export interface UpdateCourseInput {
 export interface CourseLikeResponse {
   courseId: number;
   liked: boolean;
+}
+
+export interface DeleteCourseResponse {
+  courseId: number;
+  deleted: true;
 }
 
 export interface CourseCheckinInput {

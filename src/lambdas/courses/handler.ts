@@ -16,6 +16,7 @@ import {
   courseIdParamSchema,
   courseListQuerySchema,
   createCourseBodySchema,
+  recentCommunityCourseListQuerySchema,
   updateCourseBodySchema,
 } from '../../domains/courses/schemas.js';
 import { createCoursesService, type CoursesService } from '../../domains/courses/service.js';
@@ -66,6 +67,33 @@ export async function handleCoursesRequest(
         message: 'Course list query is invalid',
       });
       const result = await service.listRecommendedCourses(input, auth.userId);
+
+      return ok(result, {
+        requestId: request.requestId ?? null,
+      });
+    }
+
+    // 코스 탭 시민 추천 영역에서 공개 사용자 생성 코스 중 최근 생성된 항목만 내려주는 API.
+    if (request.path === '/v1/courses/community/recent') {
+      assertMethod(request.method, ['GET']);
+      const input = parseInput({
+        schema: recentCommunityCourseListQuerySchema,
+        input: {
+          size: request.getQuery('size'),
+        },
+        message: 'Recent community course list query is invalid',
+      });
+      const result = await service.listRecentCommunityCourses(input, auth.userId);
+
+      return ok(result, {
+        requestId: request.requestId ?? null,
+      });
+    }
+
+    // 코스 즐겨찾기 화면에서 좋아요한 공식/시민 코스를 분리해서 내려주는 API.
+    if (request.path === '/v1/courses/favorites') {
+      assertMethod(request.method, ['GET']);
+      const result = await service.listFavoriteCourses(auth.userId);
 
       return ok(result, {
         requestId: request.requestId ?? null,
@@ -180,7 +208,16 @@ export async function handleCoursesRequest(
         });
       }
 
-      assertMethod(request.method, ['GET', 'PATCH']);
+      // 사용자가 직접 만든 코스를 soft delete 처리하는 API. 모바일 삭제 UI는 후속 범위다.
+      if (request.method === 'DELETE') {
+        const result = await service.deleteCourse(params.courseId, auth.userId);
+
+        return ok(result, {
+          requestId: request.requestId ?? null,
+        });
+      }
+
+      assertMethod(request.method, ['GET', 'PATCH', 'DELETE']);
     }
 
     throw new AppError('NOT_FOUND', {

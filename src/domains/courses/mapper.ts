@@ -5,6 +5,8 @@ import type {
   CourseLikeResponse,
   CourseListItem,
   CourseListResponse,
+  DeleteCourseResponse,
+  FavoriteCoursesResponse,
   StampProgress,
 } from './types.js';
 
@@ -39,6 +41,16 @@ export function mapCourseListResponse(
     page,
     size,
     total,
+  };
+}
+
+export function mapFavoriteCoursesResponse(
+  officialCourses: CourseListItem[],
+  communityCourses: CourseListItem[],
+): FavoriteCoursesResponse {
+  return {
+    communityCourses: communityCourses.map(mapCourseListItem),
+    officialCourses: officialCourses.map(mapCourseListItem),
   };
 }
 
@@ -81,6 +93,13 @@ export function mapCourseLikeResponse(courseId: number, liked: boolean): CourseL
   return {
     courseId,
     liked,
+  };
+}
+
+export function mapDeleteCourseResponse(courseId: number): DeleteCourseResponse {
+  return {
+    courseId,
+    deleted: true,
   };
 }
 

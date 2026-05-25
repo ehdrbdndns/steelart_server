@@ -54,10 +54,19 @@ function createCoursesRepositoryStub(
     async listActiveArtworkIds(artworkIds) {
       return artworkIds;
     },
+    async listFavoriteCourses() {
+      throw new Error('not used');
+    },
     async listMyCourses() {
       throw new Error('not used');
     },
+    async listRecentCommunityCourses() {
+      throw new Error('not used');
+    },
     async listRecommendedCourses() {
+      throw new Error('not used');
+    },
+    async softDeleteCourse() {
       throw new Error('not used');
     },
     async updateCourse() {
