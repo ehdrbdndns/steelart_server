@@ -23,6 +23,7 @@ export interface StampProgress {
 }
 
 export interface CourseListItem {
+  creator_nickname: string | null;
   description_en: string | null;
   description_ko: string | null;
   end_place_name_en: string | null;

@@ -133,6 +133,7 @@ function createCoursesServiceStub(overrides: Partial<CoursesService> = {}): Cour
             description_ko: '내 코스',
             end_place_name_en: 'Space Walk',
             end_place_name_ko: '스페이스워크',
+            creator_nickname: 'course-owner',
             id: 2,
             is_official: false,
             liked: false,
@@ -159,6 +160,7 @@ function createCoursesServiceStub(overrides: Partial<CoursesService> = {}): Cour
             description_ko: '내 코스',
             end_place_name_en: 'Space Walk',
             end_place_name_ko: '스페이스워크',
+            creator_nickname: 'course-owner',
             id: 2,
             is_official: false,
             liked: true,
@@ -183,6 +185,7 @@ function createCoursesServiceStub(overrides: Partial<CoursesService> = {}): Cour
             description_ko: '바닷길 코스',
             end_place_name_en: 'Space Walk',
             end_place_name_ko: '스페이스워크',
+            creator_nickname: null,
             id: 1,
             is_official: true,
             liked: true,
@@ -212,6 +215,7 @@ function createCoursesServiceStub(overrides: Partial<CoursesService> = {}): Cour
             description_ko: '시민 코스',
             end_place_name_en: 'Space Walk',
             end_place_name_ko: '스페이스워크',
+            creator_nickname: 'community-owner',
             id: 3,
             is_official: false,
             liked: false,
@@ -285,6 +289,7 @@ test('courses handler returns recommended list response for GET /v1/courses/reco
   assert.equal(response.statusCode, 200);
   const body = JSON.parse(response.body as string);
   assert.equal(body.data.courses[0].liked, true);
+  assert.equal(body.data.courses[0].creator_nickname, null);
   assert.deepEqual(body.data.courses[0].stampProgress, {
     checkedInCount: 1,
     totalCount: 2,
@@ -312,6 +317,7 @@ test('courses handler returns my list response for GET /v1/courses/mine', async 
   assert.equal(response.statusCode, 200);
   const body = JSON.parse(response.body as string);
   assert.equal(body.data.courses[0].is_official, false);
+  assert.equal(body.data.courses[0].creator_nickname, 'course-owner');
   assert.equal(body.data.courses[0].stampProgress, null);
   assert.equal('stamped' in body.data.courses[0], false);
 });

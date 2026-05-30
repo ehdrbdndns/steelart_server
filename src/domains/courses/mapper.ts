@@ -12,6 +12,7 @@ import type {
 
 export function mapCourseListItem(course: CourseListItem): CourseListItem {
   return {
+    creator_nickname: course.creator_nickname,
     description_en: course.description_en,
     description_ko: course.description_ko,
     end_place_name_en: course.end_place_name_en,

@@ -496,6 +496,7 @@ if (integrationSkipReason) {
     assert.equal(response.statusCode, 200);
     assert.equal(body.data.total, 1);
     assert.equal(body.data.courses[0].id, seeded.myCourseId);
+    assert.equal(body.data.courses[0].creator_nickname, 'course-owner');
     assert.equal(body.data.courses[0].liked, true);
     assert.equal(body.data.courses[0].stampProgress, null);
     assert.equal('stamped' in body.data.courses[0], false);
@@ -560,6 +561,10 @@ if (integrationSkipReason) {
       expectedIds,
     );
     assert.equal(body.data.courses.every((course: { is_official: boolean }) => !course.is_official), true);
+    assert.equal(
+      body.data.courses.every((course: { creator_nickname: string | null }) => course.creator_nickname === 'other-owner'),
+      true,
+    );
     assert.equal(body.data.courses.every((course: { stampProgress: null }) => course.stampProgress === null), true);
     assert.equal(body.data.courses.some((course: { id: number }) => course.id === deletedCourseId), false);
     assert.equal(body.data.courses.some((course: { id: number }) => course.id === seeded.officialCourseId), false);
@@ -584,11 +589,13 @@ if (integrationSkipReason) {
       [seeded.myCourseId],
     );
     assert.equal(body.data.officialCourses[0].liked, true);
+    assert.equal(body.data.officialCourses[0].creator_nickname, null);
     assert.deepEqual(body.data.officialCourses[0].stampProgress, {
       checkedInCount: 1,
       totalCount: 2,
     });
     assert.equal(body.data.communityCourses[0].liked, true);
+    assert.equal(body.data.communityCourses[0].creator_nickname, 'course-owner');
     assert.equal(body.data.communityCourses[0].stampProgress, null);
   });
 

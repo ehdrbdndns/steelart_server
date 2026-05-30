@@ -27,6 +27,7 @@ interface CountRow extends RowDataPacket {
 }
 
 interface CourseListBaseRow extends RowDataPacket {
+  creator_nickname: string | null;
   description_en: string | null;
   description_ko: string | null;
   id: number;
@@ -129,6 +130,7 @@ function mapCourseListRow(
   includeStampProgress: boolean,
 ): CourseListItem {
   return {
+    creator_nickname: baseRow.creator_nickname ?? null,
     description_en: baseRow.description_en,
     description_ko: baseRow.description_ko,
     end_place_name_en: metaRow?.end_place_name_en ?? null,
@@ -202,15 +204,24 @@ function mapCourseDetailRows(
   };
 }
 
-function buildCourseListPageSql(whereSql: string): string {
+function buildCourseListPageSql(whereSql: string, includeCreatorNickname: boolean): string {
+  const creatorNicknameSelectSql = includeCreatorNickname
+    ? 'creator.nickname AS creator_nickname'
+    : 'NULL AS creator_nickname';
+  const creatorJoinSql = includeCreatorNickname
+    ? 'LEFT JOIN users creator ON creator.id = c.created_by_user_id'
+    : '';
+
   return `SELECT
       c.id,
       c.title_ko,
       c.title_en,
       c.description_ko,
       c.description_en,
-      c.is_official
+      c.is_official,
+      ${creatorNicknameSelectSql}
     FROM courses c
+    ${creatorJoinSql}
     WHERE ${whereSql}
     ORDER BY c.updated_at DESC, c.id DESC
     LIMIT ?
@@ -647,11 +658,17 @@ export const coursesRepository: CoursesRepository = {
             c.title_en,
             c.description_ko,
             c.description_en,
-            c.is_official
+            c.is_official,
+            CASE
+              WHEN c.is_official = 0 THEN creator.nickname
+              ELSE NULL
+            END AS creator_nickname
          FROM course_likes cl
          INNER JOIN courses c
            ON c.id = cl.course_id
           AND c.deleted_at IS NULL
+         LEFT JOIN users creator
+           ON creator.id = c.created_by_user_id
          WHERE cl.user_id = ?
          ORDER BY cl.created_at DESC, c.created_at DESC, c.id DESC`,
         [userId],
@@ -676,6 +693,7 @@ export const coursesRepository: CoursesRepository = {
       const [rows] = await connection.execute<CourseListBaseRow[]>(
         buildCourseListPageSql(
           'c.created_by_user_id = ? AND c.is_official = 0 AND c.deleted_at IS NULL',
+          true,
         ),
         [userId, input.size, offset],
       );
@@ -706,8 +724,11 @@ export const coursesRepository: CoursesRepository = {
             c.title_en,
             c.description_ko,
             c.description_en,
-            c.is_official
+            c.is_official,
+            creator.nickname AS creator_nickname
          FROM courses c
+         LEFT JOIN users creator
+           ON creator.id = c.created_by_user_id
          WHERE c.is_official = 0
            AND c.created_by_user_id IS NOT NULL
            AND c.deleted_at IS NULL
@@ -738,6 +759,7 @@ export const coursesRepository: CoursesRepository = {
       const [rows] = await connection.execute<CourseListBaseRow[]>(
         buildCourseListPageSql(
           'c.is_official = 1 AND c.deleted_at IS NULL',
+          false,
         ),
         [input.size, offset],
       );
