@@ -964,6 +964,14 @@ test('map endpoint returns artworks ordered by distance within radius', { skip: 
   assert.equal(body.data.artworks[0].id, seeded.artworkIds.spaceWalk);
   assert.equal(body.data.artworks.length, 2);
   assert.equal(body.data.artworks[0].title_ko, '스페이스워크');
+  assert.equal(body.data.artworks[0].title_en, 'Space Walk');
+  assert.equal(body.data.artworks[0].artist_name_ko, '포스아트');
+  assert.equal(body.data.artworks[0].artist_name_en, 'PosArt');
+  assert.equal(body.data.artworks[0].place_name_ko, '영일대');
+  assert.equal(body.data.artworks[0].place_name_en, 'Yeongildae');
+  assert.equal(body.data.artworks[0].thumbnail_image_url, 'https://example.com/space-walk-1.jpg');
+  assert.equal(body.data.artworks[0].thumbnail_image_width, 1200);
+  assert.equal(body.data.artworks[0].thumbnail_image_height, 800);
   assert.equal(typeof body.data.artworks[0].lat, 'number');
   assert.equal(typeof body.data.artworks[0].lng, 'number');
   assert.equal(body.data.artworks[0].liked, true);
