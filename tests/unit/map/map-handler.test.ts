@@ -52,10 +52,17 @@ function createMapServiceStub(): MapService {
       return {
         artworks: [
           {
+            artist_name_en: 'PosArt',
+            artist_name_ko: '포스아트',
             id: 1,
             lat: 36.1,
             liked: true,
             lng: 129.3,
+            place_name_en: 'Yeongildae',
+            place_name_ko: '영일대',
+            thumbnail_image_height: 800,
+            thumbnail_image_url: 'https://example.com/space-walk-1.jpg',
+            thumbnail_image_width: 1200,
             title_en: 'Space Walk',
             title_ko: '스페이스워크',
           },
@@ -97,8 +104,17 @@ test('map handler returns map artworks for GET /v1/map/artworks', async () => {
   ) as APIGatewayProxyStructuredResultV2;
 
   assert.equal(response.statusCode, 200);
-  assert.equal(JSON.parse(response.body as string).data.artworks[0].lat, 36.1);
-  assert.equal(JSON.parse(response.body as string).data.artworks[0].liked, true);
+  const body = JSON.parse(response.body as string);
+  const artwork = body.data.artworks[0];
+  assert.equal(artwork.lat, 36.1);
+  assert.equal(artwork.liked, true);
+  assert.equal(artwork.artist_name_en, 'PosArt');
+  assert.equal(artwork.artist_name_ko, '포스아트');
+  assert.equal(artwork.place_name_en, 'Yeongildae');
+  assert.equal(artwork.place_name_ko, '영일대');
+  assert.equal(artwork.thumbnail_image_height, 800);
+  assert.equal(artwork.thumbnail_image_url, 'https://example.com/space-walk-1.jpg');
+  assert.equal(artwork.thumbnail_image_width, 1200);
 });
 
 // 지도 query는 lat/lng/radiusMeters가 모두 있어야 하며 하나라도 빠지면 bad request로 거부해야 한다.
