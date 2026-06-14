@@ -71,7 +71,7 @@ export async function handleUsersRequest(
     }
 
     if (request.path === '/v1/users/me') {
-      assertMethod(request.method, ['GET', 'PATCH']);
+      assertMethod(request.method, ['GET', 'PATCH', 'DELETE']);
 
       if (request.method === 'GET') {
         const result = await service.getProfile(auth.userId);
@@ -88,6 +88,14 @@ export async function handleUsersRequest(
           message: 'Profile payload is invalid',
         });
         const result = await service.updateProfile(auth.userId, input);
+
+        return ok(result, {
+          requestId: request.requestId ?? null,
+        });
+      }
+
+      if (request.method === 'DELETE') {
+        const result = await service.withdrawAccount(auth.userId);
 
         return ok(result, {
           requestId: request.requestId ?? null,

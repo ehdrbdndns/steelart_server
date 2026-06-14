@@ -26,8 +26,11 @@ const integrationSkipReason = getIntegrationSkipReason();
 interface UserRow extends RowDataPacket {
   age_group: string | null;
   id: number;
+  language?: string;
   nickname: string | null;
+  notifications_enabled?: number;
   residency: string | null;
+  withdrawn_at?: Date | string | null;
 }
 
 function createEvent(overrides: Partial<APIGatewayProxyEventV2> = {}): APIGatewayProxyEventV2 {
@@ -371,4 +374,189 @@ test('users handler updates notifications and persists them', { skip: integratio
   );
 
   assert.equal(persistedRows[0]?.notifications_enabled, 0);
+});
+
+// 회원 탈퇴 handler는 사용자 row를 익명화하고 토큰/provider를 정리하되 작성 데이터는 보존해야 한다.
+test('users handler withdraws account and preserves user activity data', { skip: integrationSkipReason }, async () => {
+  const now = new Date();
+  const [userInsertResult] = await getPool().execute<ResultSetHeader>(
+    `INSERT INTO users (
+        nickname,
+        residency,
+        age_group,
+        language,
+        notifications_enabled,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ['steelwalker', 'POHANG', '30S', 'en', 1, now, now],
+  );
+  const userId = userInsertResult.insertId;
+
+  await getPool().execute(
+    `INSERT INTO user_auth_providers (
+        user_id,
+        provider,
+        provider_user_id,
+        created_at
+      ) VALUES (?, ?, ?, ?)`,
+    [userId, 'KAKAO', 'kakao-user-1', now],
+  );
+
+  await getPool().execute(
+    `INSERT INTO user_refresh_tokens (
+        user_id,
+        refresh_token,
+        expires_at,
+        revoked_at,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, DATE_ADD(?, INTERVAL 30 DAY), NULL, ?, ?)`,
+    [userId, 'refresh-token-active', now, now, now],
+  );
+
+  const [courseInsertResult] = await getPool().execute<ResultSetHeader>(
+    `INSERT INTO courses (
+        title_ko,
+        title_en,
+        description_ko,
+        description_en,
+        is_official,
+        created_by_user_id,
+        likes_count,
+        deleted_at,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, 0, ?, 0, NULL, ?, ?)`,
+    [
+      '내 코스',
+      'My Course',
+      '탈퇴 후에도 남는 코스',
+      'Course kept after withdrawal',
+      userId,
+      now,
+      now,
+    ],
+  );
+
+  const token = signAccessToken(userId);
+
+  const response = await handleUsersRequest(
+    createEvent({
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      rawPath: '/v1/users/me',
+      requestContext: {
+        ...createEvent().requestContext,
+        http: {
+          ...createEvent().requestContext.http,
+          method: 'DELETE',
+          path: '/v1/users/me',
+        },
+      },
+    }),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(JSON.parse(response.body as string).data, {
+    withdrawn: true,
+  });
+
+  const userRows = await queryRows<UserRow>(
+    `SELECT id, nickname, residency, age_group, language, notifications_enabled, withdrawn_at
+      FROM users
+      WHERE id = ?`,
+    [userId],
+  );
+
+  assert.equal(userRows.length, 1);
+  assert.equal(userRows[0]?.nickname, 'unknown');
+  assert.equal(userRows[0]?.residency, null);
+  assert.equal(userRows[0]?.age_group, null);
+  assert.equal(userRows[0]?.language, 'ko');
+  assert.equal(userRows[0]?.notifications_enabled, 0);
+  assert.notEqual(userRows[0]?.withdrawn_at, null);
+
+  const refreshRows = await queryRows<RowDataPacket & { revoked_at: Date | string | null }>(
+    `SELECT revoked_at
+      FROM user_refresh_tokens
+      WHERE user_id = ?`,
+    [userId],
+  );
+  assert.equal(refreshRows.length, 1);
+  assert.notEqual(refreshRows[0]?.revoked_at, null);
+
+  const providerRows = await queryRows<RowDataPacket & { total: number }>(
+    `SELECT COUNT(*) AS total
+      FROM user_auth_providers
+      WHERE user_id = ?`,
+    [userId],
+  );
+  assert.equal(Number(providerRows[0]?.total ?? 0), 0);
+
+  const courseRows = await queryRows<RowDataPacket & { created_by_user_id: number | null }>(
+    `SELECT created_by_user_id
+      FROM courses
+      WHERE id = ?`,
+    [courseInsertResult.insertId],
+  );
+  assert.equal(courseRows[0]?.created_by_user_id, userId);
+});
+
+// 이미 탈퇴된 사용자가 같은 access token으로 다시 탈퇴를 요청해도 멱등하게 성공해야 한다.
+test('users handler returns withdrawn true when account is already withdrawn', { skip: integrationSkipReason }, async () => {
+  const now = new Date();
+  const [insertResult] = await getPool().execute<ResultSetHeader>(
+    `INSERT INTO users (
+        nickname,
+        residency,
+        age_group,
+        language,
+        notifications_enabled,
+        withdrawn_at,
+        created_at,
+        updated_at
+      ) VALUES (?, NULL, NULL, ?, ?, ?, ?, ?)`,
+    ['unknown', 'ko', 0, now, now, now],
+  );
+  const token = signAccessToken(insertResult.insertId);
+
+  const response = await handleUsersRequest(
+    createEvent({
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      rawPath: '/v1/users/me',
+      requestContext: {
+        ...createEvent().requestContext,
+        http: {
+          ...createEvent().requestContext.http,
+          method: 'DELETE',
+          path: '/v1/users/me',
+        },
+      },
+    }),
+    {} as never,
+  ) as APIGatewayProxyStructuredResultV2;
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(JSON.parse(response.body as string).data, {
+    withdrawn: true,
+  });
+
+  const rows = await queryRows<UserRow>(
+    `SELECT nickname, residency, age_group, language, notifications_enabled, withdrawn_at
+      FROM users
+      WHERE id = ?`,
+    [insertResult.insertId],
+  );
+
+  assert.equal(rows[0]?.nickname, 'unknown');
+  assert.equal(rows[0]?.residency, null);
+  assert.equal(rows[0]?.age_group, null);
+  assert.equal(rows[0]?.language, 'ko');
+  assert.equal(rows[0]?.notifications_enabled, 0);
+  assert.notEqual(rows[0]?.withdrawn_at, null);
 });

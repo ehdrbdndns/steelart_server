@@ -73,6 +73,11 @@ function createUsersServiceStub(): UsersService {
     async updateProfile() {
       throw new Error('not used');
     },
+    async withdrawAccount() {
+      return {
+        withdrawn: true,
+      };
+    },
   };
 }
 
@@ -124,6 +129,46 @@ test('users handler updates language with authenticated request', async () => {
         notifications_enabled: true,
         residency: 'POHANG',
       },
+    },
+    error: null,
+    meta: {
+      requestId: 'request-id',
+    },
+  });
+});
+
+// 인증된 사용자가 회원 탈퇴를 요청하면 200 응답과 withdrawn=true를 반환해야 한다.
+test('users handler withdraws authenticated account', async () => {
+  applyServerTestEnv();
+  const issuedAt = new Date();
+
+  const token = signAccessToken(5, {
+    now: issuedAt,
+    secret: 'test-secret',
+  });
+  const response = await handleUsersRequest(
+    createEvent({
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      rawPath: '/v1/users/me',
+      requestContext: {
+        ...createEvent().requestContext,
+        http: {
+          ...createEvent().requestContext.http,
+          method: 'DELETE',
+          path: '/v1/users/me',
+        },
+      },
+    }),
+    {} as never,
+    createUsersServiceStub(),
+  ) as APIGatewayProxyStructuredResultV2;
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(JSON.parse(response.body as string), {
+    data: {
+      withdrawn: true,
     },
     error: null,
     meta: {

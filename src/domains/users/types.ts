@@ -31,6 +31,10 @@ export interface UserProfileResponse {
   user: UserDto;
 }
 
+export interface WithdrawAccountResponse {
+  withdrawn: true;
+}
+
 export interface OnboardingUpdateInput {
   age_group: AgeGroup;
   nickname: string;
