@@ -6,6 +6,7 @@ import type {
   OnboardingUpdateInput,
   ProfileUpdateInput,
   UserProfileResponse,
+  WithdrawAccountResponse,
 } from './types.js';
 import type { UsersRepository } from './repository.js';
 
@@ -15,6 +16,7 @@ export interface UsersService {
   updateNotifications(userId: number, input: NotificationsUpdateInput): Promise<UserProfileResponse>;
   updateOnboarding(userId: number, input: OnboardingUpdateInput): Promise<UserProfileResponse>;
   updateProfile(userId: number, input: ProfileUpdateInput): Promise<UserProfileResponse>;
+  withdrawAccount(userId: number): Promise<WithdrawAccountResponse>;
 }
 
 export interface UsersServiceDependencies {
@@ -55,6 +57,14 @@ export function createUsersService(
     async updateProfile(userId, input) {
       const user = await dependencies.usersRepository.updateProfile(userId, input);
       return mapUserProfileResponse(user);
+    },
+
+    async withdrawAccount(userId) {
+      await dependencies.usersRepository.withdrawAccount(userId);
+
+      return {
+        withdrawn: true,
+      };
     },
   };
 }

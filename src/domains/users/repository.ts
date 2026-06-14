@@ -5,6 +5,7 @@ import type {
 
 import { AppError } from '../../shared/api/errors.js';
 import { withConnection } from '../../shared/db/pool.js';
+import { withTransaction } from '../../shared/db/tx.js';
 import type {
   LanguageUpdateInput,
   NotificationsUpdateInput,
@@ -30,6 +31,7 @@ export interface UsersRepository {
   updateNotifications(userId: number, input: NotificationsUpdateInput): Promise<UserRecord>;
   updateOnboarding(userId: number, input: OnboardingUpdateInput): Promise<UserRecord>;
   updateProfile(userId: number, input: ProfileUpdateInput): Promise<UserRecord>;
+  withdrawAccount(userId: number): Promise<void>;
 }
 
 const USER_SELECT_COLUMNS = [
@@ -219,6 +221,46 @@ export const usersRepository: UsersRepository = {
       }
 
       return user;
+    });
+  },
+
+  async withdrawAccount(userId) {
+    await withTransaction(async (connection) => {
+      const now = new Date();
+
+      const [result] = await connection.execute<ResultSetHeader>(
+        `UPDATE users
+            SET nickname = ?,
+                residency = NULL,
+                age_group = NULL,
+                language = ?,
+                notifications_enabled = ?,
+                withdrawn_at = COALESCE(withdrawn_at, ?),
+                updated_at = ?
+          WHERE id = ?`,
+        ['unknown', 'ko', 0, now, now, userId],
+      );
+
+      if (result.affectedRows === 0) {
+        throw new AppError('NOT_FOUND', {
+          message: 'User not found',
+        });
+      }
+
+      await connection.execute<ResultSetHeader>(
+        `UPDATE user_refresh_tokens
+            SET revoked_at = COALESCE(revoked_at, ?),
+                updated_at = ?
+          WHERE user_id = ?
+            AND revoked_at IS NULL`,
+        [now, now, userId],
+      );
+
+      await connection.execute<ResultSetHeader>(
+        `DELETE FROM user_auth_providers
+          WHERE user_id = ?`,
+        [userId],
+      );
     });
   },
 };
