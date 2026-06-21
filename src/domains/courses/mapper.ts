@@ -5,8 +5,10 @@ import type {
   CourseLikeResponse,
   CourseListItem,
   CourseListResponse,
+  CourseRouteResponse,
   DeleteCourseResponse,
   FavoriteCoursesResponse,
+  RouteVertex,
   StampProgress,
 } from './types.js';
 
@@ -114,5 +116,14 @@ export function mapCourseCheckinResponse(
     courseId,
     courseItemId,
     stampProgress,
+  };
+}
+
+export function mapCourseRouteResponse(vertexes: RouteVertex[]): CourseRouteResponse {
+  return {
+    vertexes: vertexes.map((vertex) => ({
+      lat: vertex.lat,
+      lng: vertex.lng,
+    })),
   };
 }

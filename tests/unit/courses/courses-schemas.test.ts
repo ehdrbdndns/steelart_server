@@ -7,6 +7,7 @@ import {
   courseCheckinBodySchema,
   courseIdParamSchema,
   courseListQuerySchema,
+  courseRouteBodySchema,
   createCourseBodySchema,
 } from '../../../src/domains/courses/schemas.js';
 
@@ -101,6 +102,63 @@ test('create course schema rejects missing description, duplicate artwork, and n
         ],
         title_en: 'Course',
         title_ko: '코스',
+      },
+    }),
+    (error: unknown) => error instanceof AppError && error.code === 'VALIDATION_ERROR',
+  );
+});
+
+test('course route schema accepts a payload with at least two items', () => {
+  assert.deepEqual(parseInput({
+    schema: courseRouteBodySchema,
+    input: {
+      items: [
+        { artwork_id: 11, seq: 1 },
+        { artwork_id: 22, seq: 2 },
+      ],
+    },
+  }), {
+    items: [
+      { artwork_id: 11, seq: 1 },
+      { artwork_id: 22, seq: 2 },
+    ],
+  });
+});
+
+test('course route schema rejects fewer than two items', () => {
+  assert.throws(
+    () => parseInput({
+      schema: courseRouteBodySchema,
+      input: {
+        items: [{ artwork_id: 11, seq: 1 }],
+      },
+    }),
+    (error: unknown) => error instanceof AppError && error.code === 'VALIDATION_ERROR',
+  );
+});
+
+test('course route schema rejects non-positive artwork ids and unknown keys', () => {
+  assert.throws(
+    () => parseInput({
+      schema: courseRouteBodySchema,
+      input: {
+        items: [
+          { artwork_id: 0, seq: 1 },
+          { artwork_id: 22, seq: 2 },
+        ],
+      },
+    }),
+    (error: unknown) => error instanceof AppError && error.code === 'VALIDATION_ERROR',
+  );
+
+  assert.throws(
+    () => parseInput({
+      schema: courseRouteBodySchema,
+      input: {
+        items: [
+          { artwork_id: 11, seq: 1, lat: 36.0 },
+          { artwork_id: 22, seq: 2 },
+        ],
       },
     }),
     (error: unknown) => error instanceof AppError && error.code === 'VALIDATION_ERROR',

@@ -7,6 +7,8 @@ export const CHECKIN_BASE_RADIUS_METERS = 10;
 export const CHECKIN_TOLERANCE_METERS = 5;
 export const CHECKIN_ALLOWED_RADIUS_METERS =
   CHECKIN_BASE_RADIUS_METERS + CHECKIN_TOLERANCE_METERS;
+export const COURSE_ROUTE_MIN_ITEMS = 2;
+export const COURSE_ROUTE_MAX_WAYPOINTS = 30;
 
 export interface CourseListInput {
   page: number;
@@ -138,4 +140,32 @@ export interface CourseCheckinTarget {
   alreadyCheckedIn: boolean;
   lat: number;
   lng: number;
+}
+
+export interface CourseRouteItemInput {
+  artwork_id: number;
+  seq: number;
+}
+
+export interface CourseRouteInput {
+  items: CourseRouteItemInput[];
+}
+
+export interface RouteVertex {
+  lat: number;
+  lng: number;
+}
+
+export interface CourseRouteResponse {
+  vertexes: RouteVertex[];
+}
+
+export interface ArtworkCoordinate {
+  artwork_id: number;
+  lat: number;
+  lng: number;
+}
+
+export interface CourseRouteProvider {
+  fetchRoute(orderedCoordinates: RouteVertex[]): Promise<RouteVertex[]>;
 }

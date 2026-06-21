@@ -119,6 +119,14 @@ function createCoursesServiceStub(overrides: Partial<CoursesService> = {}): Cour
         title_ko: '코스',
       };
     },
+    async getCourseRoute() {
+      return {
+        vertexes: [
+          { lat: 36.01, lng: 129.11 },
+          { lat: 36.02, lng: 129.12 },
+        ],
+      };
+    },
     async likeCourse(courseId) {
       return {
         courseId,
@@ -497,6 +505,62 @@ test('courses handler returns check-in response for POST /v1/courses/{courseId}/
       totalCount: 5,
     },
   });
+});
+
+test('courses handler returns route vertexes for POST /v1/courses/route', async () => {
+  applyServerTestEnv();
+  const token = signAccessToken(1, { secret: 'test-secret' });
+
+  const response = await handleCoursesRequest(
+    createEvent({
+      body: JSON.stringify({
+        items: [
+          { artwork_id: 11, seq: 1 },
+          { artwork_id: 22, seq: 2 },
+        ],
+      }),
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      rawPath: '/v1/courses/route',
+      requestContext: createRequestContext('/v1/courses/route', 'POST'),
+      routeKey: 'POST /v1/courses/route',
+    }),
+    {} as never,
+    createCoursesServiceStub(),
+  ) as APIGatewayProxyStructuredResultV2;
+
+  assert.equal(response.statusCode, 200);
+  const body = JSON.parse(response.body as string);
+  assert.equal(body.error, null);
+  assert.deepEqual(body.data.vertexes, [
+    { lat: 36.01, lng: 129.11 },
+    { lat: 36.02, lng: 129.12 },
+  ]);
+});
+
+test('courses handler rejects POST /v1/courses/route with fewer than two items', async () => {
+  applyServerTestEnv();
+  const token = signAccessToken(1, { secret: 'test-secret' });
+
+  const response = await handleCoursesRequest(
+    createEvent({
+      body: JSON.stringify({
+        items: [{ artwork_id: 11, seq: 1 }],
+      }),
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      rawPath: '/v1/courses/route',
+      requestContext: createRequestContext('/v1/courses/route', 'POST'),
+      routeKey: 'POST /v1/courses/route',
+    }),
+    {} as never,
+    createCoursesServiceStub(),
+  ) as APIGatewayProxyStructuredResultV2;
+
+  assert.equal(response.statusCode, 400);
+  assert.equal(JSON.parse(response.body as string).error.code, 'BAD_REQUEST');
 });
 
 test('courses handler returns UNAUTHORIZED without bearer token', async () => {

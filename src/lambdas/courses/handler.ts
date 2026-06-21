@@ -15,14 +15,17 @@ import {
   courseCheckinBodySchema,
   courseIdParamSchema,
   courseListQuerySchema,
+  courseRouteBodySchema,
   createCourseBodySchema,
   recentCommunityCourseListQuerySchema,
   updateCourseBodySchema,
 } from '../../domains/courses/schemas.js';
 import { createCoursesService, type CoursesService } from '../../domains/courses/service.js';
 import { coursesRepository } from '../../domains/courses/repository.js';
+import { createKakaoMobilityRouteProvider } from '../../domains/courses/route-provider.js';
 
 const coursesService = createCoursesService({
+  courseRouteProvider: createKakaoMobilityRouteProvider(),
   coursesRepository,
 });
 
@@ -112,6 +115,22 @@ export async function handleCoursesRequest(
         message: 'Course list query is invalid',
       });
       const result = await service.listMyCourses(input, auth.userId);
+
+      return ok(result, {
+        requestId: request.requestId ?? null,
+      });
+    }
+
+    // 코스 동선 지도 polyline 좌표를 카카오 자동차 경로로 계산해 내려주는 경로 조회 API.
+    if (request.path === '/v1/courses/route') {
+      assertMethod(request.method, ['POST']);
+      const input = parseInput({
+        schema: courseRouteBodySchema,
+        input: request.parseJsonBody(),
+        code: 'BAD_REQUEST',
+        message: 'Course route payload is invalid',
+      });
+      const result = await service.getCourseRoute(input);
 
       return ok(result, {
         requestId: request.requestId ?? null,

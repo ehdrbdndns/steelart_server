@@ -54,6 +54,13 @@ function createCoursesRepositoryStub(
     async listActiveArtworkIds(artworkIds) {
       return artworkIds;
     },
+    async listArtworkCoordinates(artworkIds) {
+      return artworkIds.map((artworkId, index) => ({
+        artwork_id: artworkId,
+        lat: 36.01 + index * 0.001,
+        lng: 129.11 + index * 0.001,
+      }));
+    },
     async listFavoriteCourses() {
       throw new Error('not used');
     },
@@ -366,4 +373,246 @@ test('courses service returns check-in success inside the allowed radius', async
       step: 'progress',
     },
   ]);
+});
+
+test('courses service returns route vertexes for a valid course', async () => {
+  let receivedCoordinates: Array<{ lat: number; lng: number }> = [];
+  const service = createCoursesService({
+    coursesRepository: createCoursesRepositoryStub(),
+    courseRouteProvider: {
+      async fetchRoute(coordinates) {
+        receivedCoordinates = coordinates;
+        return [
+          { lat: 36.0, lng: 129.0 },
+          { lat: 36.5, lng: 129.5 },
+        ];
+      },
+    },
+  });
+
+  const result = await service.getCourseRoute({
+    items: [
+      { artwork_id: 11, seq: 1 },
+      { artwork_id: 22, seq: 2 },
+      { artwork_id: 33, seq: 3 },
+    ],
+  });
+
+  assert.deepEqual(result, {
+    vertexes: [
+      { lat: 36.0, lng: 129.0 },
+      { lat: 36.5, lng: 129.5 },
+    ],
+  });
+  assert.equal(receivedCoordinates.length, 3);
+});
+
+test('courses service rejects a route with more than thirty items', async () => {
+  const items = Array.from({ length: 31 }, (_unused, index) => ({
+    artwork_id: index + 1,
+    seq: index + 1,
+  }));
+  const service = createCoursesService({
+    coursesRepository: createCoursesRepositoryStub(),
+    courseRouteProvider: {
+      async fetchRoute() {
+        throw new Error('provider should not be called');
+      },
+    },
+  });
+
+  await assert.rejects(
+    () => service.getCourseRoute({ items }),
+    (error: unknown) =>
+      error instanceof AppError && error.code === 'TOO_MANY_WAYPOINTS' && error.statusCode === 400,
+  );
+});
+
+test('courses service rejects a route with non-contiguous seq as bad request', async () => {
+  const service = createCoursesService({
+    coursesRepository: createCoursesRepositoryStub(),
+    courseRouteProvider: {
+      async fetchRoute() {
+        throw new Error('provider should not be called');
+      },
+    },
+  });
+
+  await assert.rejects(
+    () => service.getCourseRoute({
+      items: [
+        { artwork_id: 11, seq: 1 },
+        { artwork_id: 22, seq: 3 },
+      ],
+    }),
+    (error: unknown) =>
+      error instanceof AppError && error.code === 'BAD_REQUEST' && error.statusCode === 400,
+  );
+});
+
+test('courses service returns 422 ROUTE_UNAVAILABLE when fewer than two coordinates resolve', async () => {
+  let providerCalled = false;
+  const service = createCoursesService({
+    coursesRepository: createCoursesRepositoryStub({
+      async listArtworkCoordinates(artworkIds) {
+        return [{ artwork_id: artworkIds[0], lat: 36.0, lng: 129.0 }];
+      },
+    }),
+    courseRouteProvider: {
+      async fetchRoute() {
+        providerCalled = true;
+        return [];
+      },
+    },
+  });
+
+  await assert.rejects(
+    () => service.getCourseRoute({
+      items: [
+        { artwork_id: 11, seq: 1 },
+        { artwork_id: 22, seq: 2 },
+      ],
+    }),
+    (error: unknown) =>
+      error instanceof AppError && error.code === 'ROUTE_UNAVAILABLE' && error.statusCode === 422,
+  );
+  assert.equal(providerCalled, false);
+});
+
+test('courses service builds a partial route when some artworks lack coordinates', async () => {
+  let receivedCoordinates: Array<{ lat: number; lng: number }> = [];
+  const service = createCoursesService({
+    coursesRepository: createCoursesRepositoryStub({
+      async listArtworkCoordinates() {
+        return [
+          { artwork_id: 11, lat: 36.0, lng: 129.0 },
+          { artwork_id: 33, lat: 36.2, lng: 129.2 },
+        ];
+      },
+    }),
+    courseRouteProvider: {
+      async fetchRoute(coordinates) {
+        receivedCoordinates = coordinates;
+        return coordinates;
+      },
+    },
+  });
+
+  await service.getCourseRoute({
+    items: [
+      { artwork_id: 11, seq: 1 },
+      { artwork_id: 22, seq: 2 },
+      { artwork_id: 33, seq: 3 },
+    ],
+  });
+
+  assert.deepEqual(receivedCoordinates, [
+    { lat: 36.0, lng: 129.0 },
+    { lat: 36.2, lng: 129.2 },
+  ]);
+});
+
+test('courses service collapses consecutive identical coordinates before routing', async () => {
+  let receivedCoordinates: Array<{ lat: number; lng: number }> = [];
+  const service = createCoursesService({
+    coursesRepository: createCoursesRepositoryStub({
+      async listArtworkCoordinates() {
+        return [
+          { artwork_id: 11, lat: 36.0, lng: 129.0 },
+          { artwork_id: 22, lat: 36.0, lng: 129.0 },
+          { artwork_id: 33, lat: 36.2, lng: 129.2 },
+        ];
+      },
+    }),
+    courseRouteProvider: {
+      async fetchRoute(coordinates) {
+        receivedCoordinates = coordinates;
+        return coordinates;
+      },
+    },
+  });
+
+  await service.getCourseRoute({
+    items: [
+      { artwork_id: 11, seq: 1 },
+      { artwork_id: 22, seq: 2 },
+      { artwork_id: 33, seq: 3 },
+    ],
+  });
+
+  assert.deepEqual(receivedCoordinates, [
+    { lat: 36.0, lng: 129.0 },
+    { lat: 36.2, lng: 129.2 },
+  ]);
+});
+
+test('courses service returns 422 when dedup leaves fewer than two coordinates', async () => {
+  const service = createCoursesService({
+    coursesRepository: createCoursesRepositoryStub({
+      async listArtworkCoordinates() {
+        return [
+          { artwork_id: 11, lat: 36.0, lng: 129.0 },
+          { artwork_id: 22, lat: 36.0, lng: 129.0 },
+        ];
+      },
+    }),
+    courseRouteProvider: {
+      async fetchRoute() {
+        throw new Error('provider should not be called');
+      },
+    },
+  });
+
+  await assert.rejects(
+    () => service.getCourseRoute({
+      items: [
+        { artwork_id: 11, seq: 1 },
+        { artwork_id: 22, seq: 2 },
+      ],
+    }),
+    (error: unknown) =>
+      error instanceof AppError && error.code === 'ROUTE_UNAVAILABLE' && error.statusCode === 422,
+  );
+});
+
+test('courses service surfaces 502 ROUTE_UNAVAILABLE when the provider fails', async () => {
+  const service = createCoursesService({
+    coursesRepository: createCoursesRepositoryStub(),
+    courseRouteProvider: {
+      async fetchRoute() {
+        throw new AppError('ROUTE_UNAVAILABLE', {
+          message: 'upstream failed',
+          statusCode: 502,
+        });
+      },
+    },
+  });
+
+  await assert.rejects(
+    () => service.getCourseRoute({
+      items: [
+        { artwork_id: 11, seq: 1 },
+        { artwork_id: 22, seq: 2 },
+      ],
+    }),
+    (error: unknown) =>
+      error instanceof AppError && error.code === 'ROUTE_UNAVAILABLE' && error.statusCode === 502,
+  );
+});
+
+test('courses service returns 502 ROUTE_UNAVAILABLE when no route provider is configured', async () => {
+  const service = createCoursesService({
+    coursesRepository: createCoursesRepositoryStub(),
+  });
+
+  await assert.rejects(
+    () => service.getCourseRoute({
+      items: [
+        { artwork_id: 11, seq: 1 },
+        { artwork_id: 22, seq: 2 },
+      ],
+    }),
+    (error: unknown) =>
+      error instanceof AppError && error.code === 'ROUTE_UNAVAILABLE' && error.statusCode === 502,
+  );
 });

@@ -7,6 +7,7 @@ import type {
 import { withConnection } from '../../shared/db/pool.js';
 import { withTransaction } from '../../shared/db/tx.js';
 import type {
+  ArtworkCoordinate,
   CourseCheckinTarget,
   CourseDetail,
   CourseDetailItem,
@@ -93,6 +94,12 @@ interface IdRow extends RowDataPacket {
 
 interface CourseCheckinTargetRow extends RowDataPacket {
   already_checked_in: number | boolean;
+  lat: number;
+  lng: number;
+}
+
+interface ArtworkCoordinateRow extends RowDataPacket {
+  artwork_id: number;
   lat: number;
   lng: number;
 }
@@ -354,6 +361,7 @@ export interface CoursesRepository {
   findCourseRecord(courseId: number): Promise<CourseRecord | null>;
   findCourseStampProgress(courseId: number, userId: number): Promise<StampProgress>;
   listActiveArtworkIds(artworkIds: number[]): Promise<number[]>;
+  listArtworkCoordinates(artworkIds: number[]): Promise<ArtworkCoordinate[]>;
   listFavoriteCourses(userId: number): Promise<FavoriteCoursesResponse>;
   listMyCourses(input: CourseListInput, userId: number): Promise<{ courses: CourseListItem[]; total: number }>;
   listRecentCommunityCourses(
@@ -646,6 +654,39 @@ export const coursesRepository: CoursesRepository = {
       );
 
       return rows.map((row) => row.id);
+    });
+  },
+
+  async listArtworkCoordinates(artworkIds) {
+    if (artworkIds.length === 0) {
+      return [];
+    }
+
+    const placeholders = buildInClausePlaceholders(artworkIds.length);
+
+    return withConnection(async (connection) => {
+      const [rows] = await connection.execute<ArtworkCoordinateRow[]>(
+        `SELECT
+            a.id AS artwork_id,
+            CAST(p.lat AS DOUBLE) AS lat,
+            CAST(p.lng AS DOUBLE) AS lng
+         FROM artworks a
+         INNER JOIN artists ar
+           ON ar.id = a.artist_id
+          AND ar.deleted_at IS NULL
+         INNER JOIN places p
+           ON p.id = a.place_id
+          AND p.deleted_at IS NULL
+         WHERE a.deleted_at IS NULL
+           AND a.id IN (${placeholders})`,
+        artworkIds,
+      );
+
+      return rows.map((row) => ({
+        artwork_id: row.artwork_id,
+        lat: Number(row.lat),
+        lng: Number(row.lng),
+      }));
     });
   },
 

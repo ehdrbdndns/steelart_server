@@ -25,6 +25,10 @@ permissions:
   contents: read
   id-token: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.sam_config_env || vars.SAM_CONFIG_ENV || 'dev' }}
+  queue: max
+
 env:
   APP_NAME: ${{ vars.APP_NAME || 'steelart-server' }}
   APPLE_CLIENT_ID: ${{ vars.APPLE_CLIENT_ID || '' }}
@@ -79,6 +83,7 @@ jobs:
         env:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          KAKAO_MOBILITY_REST_API_KEY: ${{ secrets.KAKAO_MOBILITY_REST_API_KEY }}
         run: |
           sam deploy \
             --template-file .aws-sam/build/template.yaml \
@@ -98,4 +103,5 @@ jobs:
               JwtSecret="${JWT_SECRET}" \
               KakaoClientId="${KAKAO_CLIENT_ID}" \
               AppleClientId="${APPLE_CLIENT_ID}" \
+              KakaoMobilityRestApiKey="${KAKAO_MOBILITY_REST_API_KEY}" \
               LogLevel="${LOG_LEVEL}"
