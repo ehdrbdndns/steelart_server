@@ -9,6 +9,8 @@ import type {
 import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
 import { handleCoursesRequest } from '../../../src/lambdas/courses/handler.js';
+import { coursesRepository } from '../../../src/domains/courses/repository.js';
+import { createCoursesService } from '../../../src/domains/courses/service.js';
 import { signAccessToken } from '../../../src/shared/auth/token.js';
 import { getPool } from '../../../src/shared/db/pool.js';
 import {
@@ -59,14 +61,14 @@ function createEvent(
       ? { courseId: likeMatch[1] }
       : checkinMatch
         ? { courseId: checkinMatch[1] }
-        : detailMatch && !['favorites', 'mine', 'recommended'].includes(detailMatch[1])
+        : detailMatch && !['favorites', 'mine', 'recommended', 'route'].includes(detailMatch[1])
           ? { courseId: detailMatch[1] }
           : {};
   const routePath = likeMatch
     ? '/v1/courses/{courseId}/like'
     : checkinMatch
       ? '/v1/courses/{courseId}/checkins'
-      : detailMatch && !['favorites', 'mine', 'recommended'].includes(detailMatch[1])
+      : detailMatch && !['favorites', 'mine', 'recommended', 'route'].includes(detailMatch[1])
         ? '/v1/courses/{courseId}'
         : path;
 
@@ -447,6 +449,75 @@ if (integrationSkipReason) {
       totalCount: 2,
     });
     assert.equal('stamped' in body.data.courses[0], false);
+  });
+
+  test('route endpoint returns kakao vertexes for seeded artwork coordinates', async () => {
+    const token = signAccessToken(seeded.userId);
+    let receivedCoordinates: Array<{ lat: number; lng: number }> = [];
+    const routeService = createCoursesService({
+      coursesRepository,
+      courseRouteProvider: {
+        async fetchRoute(coordinates) {
+          receivedCoordinates = coordinates;
+          return [
+            { lat: 36.05, lng: 129.37 },
+            { lat: 36.06, lng: 129.39 },
+          ];
+        },
+      },
+    });
+
+    const response = await handleCoursesRequest(
+      createEvent('/v1/courses/route', '', token, 'POST', {
+        items: [
+          { artwork_id: seeded.artworkIds.one, seq: 1 },
+          { artwork_id: seeded.artworkIds.two, seq: 2 },
+          { artwork_id: seeded.artworkIds.three, seq: 3 },
+        ],
+      }),
+      {} as Context,
+      routeService,
+    ) as APIGatewayProxyStructuredResultV2;
+    const body = JSON.parse(response.body as string);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(body.error, null);
+    assert.deepEqual(body.data.vertexes, [
+      { lat: 36.05, lng: 129.37 },
+      { lat: 36.06, lng: 129.39 },
+    ]);
+    assert.deepEqual(receivedCoordinates, [
+      { lat: 36.058, lng: 129.378 },
+      { lat: 36.067, lng: 129.395 },
+      { lat: 36.034, lng: 129.369 },
+    ]);
+  });
+
+  test('route endpoint returns 422 when fewer than two artworks resolve coordinates', async () => {
+    const token = signAccessToken(seeded.userId);
+    const routeService = createCoursesService({
+      coursesRepository,
+      courseRouteProvider: {
+        async fetchRoute() {
+          throw new Error('provider should not be called');
+        },
+      },
+    });
+
+    const response = await handleCoursesRequest(
+      createEvent('/v1/courses/route', '', token, 'POST', {
+        items: [
+          { artwork_id: 99999999, seq: 1 },
+          { artwork_id: seeded.artworkIds.one, seq: 2 },
+        ],
+      }),
+      {} as Context,
+      routeService,
+    ) as APIGatewayProxyStructuredResultV2;
+    const body = JSON.parse(response.body as string);
+
+    assert.equal(response.statusCode, 422);
+    assert.equal(body.error.code, 'ROUTE_UNAVAILABLE');
   });
 
   test('course progress excludes soft-deleted artwork items', async () => {

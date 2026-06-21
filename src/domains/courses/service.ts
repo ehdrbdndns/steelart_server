@@ -1,9 +1,15 @@
-import { AppError } from '../../shared/api/errors.js';
+import { AppError, type AppErrorCode } from '../../shared/api/errors.js';
 import { isWithinRadiusMeters } from '../../shared/geo/distance.js';
 import {
   CHECKIN_ALLOWED_RADIUS_METERS,
+  COURSE_ROUTE_MAX_WAYPOINTS,
+  COURSE_ROUTE_MIN_ITEMS,
+  type ArtworkCoordinate,
   type CourseCheckinInput,
   type CourseCheckinResponse,
+  type CourseRouteInput,
+  type CourseRouteProvider,
+  type CourseRouteResponse,
   type DeleteCourseResponse,
   type FavoriteCoursesResponse,
   type CourseDetail,
@@ -12,6 +18,7 @@ import {
   type CourseListResponse,
   type CreateCourseInput,
   type RecentCommunityCourseListInput,
+  type RouteVertex,
   type UpdateCourseInput,
 } from './types.js';
 import {
@@ -19,6 +26,7 @@ import {
   mapCourseDetail,
   mapCourseLikeResponse,
   mapCourseListResponse,
+  mapCourseRouteResponse,
   mapDeleteCourseResponse,
   mapFavoriteCoursesResponse,
 } from './mapper.js';
@@ -29,6 +37,7 @@ export interface CoursesService {
   createCourse(input: CreateCourseInput, userId: number): Promise<CourseDetail>;
   deleteCourse(courseId: number, userId: number): Promise<DeleteCourseResponse>;
   getCourseDetail(courseId: number, userId: number): Promise<CourseDetail>;
+  getCourseRoute(input: CourseRouteInput): Promise<CourseRouteResponse>;
   likeCourse(courseId: number, userId: number): Promise<CourseLikeResponse>;
   listFavoriteCourses(userId: number): Promise<FavoriteCoursesResponse>;
   listMyCourses(input: CourseListInput, userId: number): Promise<CourseListResponse>;
@@ -40,17 +49,19 @@ export interface CoursesService {
 
 export interface CoursesServiceDependencies {
   coursesRepository: CoursesRepository;
+  courseRouteProvider?: CourseRouteProvider;
 }
 
 function assertContiguousItems(
   items: Array<{ artwork_id: number; seq: number }>,
+  code: AppErrorCode = 'VALIDATION_ERROR',
 ): void {
   const artworkIds = new Set<number>();
   const orderedSeq = [...items].map((item) => item.seq).sort((left, right) => left - right);
 
   for (const item of items) {
     if (artworkIds.has(item.artwork_id)) {
-      throw new AppError('VALIDATION_ERROR', {
+      throw new AppError(code, {
         details: {
           items,
         },
@@ -63,7 +74,7 @@ function assertContiguousItems(
 
   for (let index = 0; index < orderedSeq.length; index += 1) {
     if (orderedSeq[index] !== index + 1) {
-      throw new AppError('VALIDATION_ERROR', {
+      throw new AppError(code, {
         details: {
           items,
         },
@@ -243,6 +254,70 @@ export function createCoursesService(
 
     async getCourseDetail(courseId, userId) {
       return loadCourseDetail(courseId, userId);
+    },
+
+    async getCourseRoute(input) {
+      const provider = dependencies.courseRouteProvider;
+
+      if (!provider) {
+        throw new AppError('ROUTE_UNAVAILABLE', {
+          message: 'Route provider is not configured',
+          statusCode: 502,
+        });
+      }
+
+      if (input.items.length > COURSE_ROUTE_MAX_WAYPOINTS) {
+        throw new AppError('TOO_MANY_WAYPOINTS', {
+          details: {
+            maxWaypoints: COURSE_ROUTE_MAX_WAYPOINTS,
+            received: input.items.length,
+          },
+          message: 'Too many waypoints',
+        });
+      }
+
+      assertContiguousItems(input.items, 'BAD_REQUEST');
+
+      const orderedArtworkIds = [...input.items]
+        .sort((left, right) => left.seq - right.seq)
+        .map((item) => item.artwork_id);
+      const coordinates = await dependencies.coursesRepository.listArtworkCoordinates(orderedArtworkIds);
+      const coordinateByArtworkId = new Map<number, ArtworkCoordinate>(
+        coordinates.map((coordinate) => [coordinate.artwork_id, coordinate]),
+      );
+
+      // 좌표가 없는(활성 place가 조인되지 않는) 작품은 조용히 제외한다.
+      const orderedCoordinates: RouteVertex[] = orderedArtworkIds
+        .map((artworkId) => coordinateByArtworkId.get(artworkId))
+        .filter((coordinate): coordinate is ArtworkCoordinate => Boolean(coordinate))
+        .map((coordinate) => ({
+          lat: coordinate.lat,
+          lng: coordinate.lng,
+        }));
+
+      // 같은 장소(동일 좌표)가 연속되면 1개로 압축한다(불필요한 카카오 실패 예방).
+      const dedupedCoordinates = orderedCoordinates.filter((coordinate, index) => {
+        if (index === 0) {
+          return true;
+        }
+
+        const previous = orderedCoordinates[index - 1];
+        return coordinate.lat !== previous.lat || coordinate.lng !== previous.lng;
+      });
+
+      if (dedupedCoordinates.length < COURSE_ROUTE_MIN_ITEMS) {
+        throw new AppError('ROUTE_UNAVAILABLE', {
+          details: {
+            validCoordinateCount: dedupedCoordinates.length,
+          },
+          message: 'Not enough valid coordinates to build a route',
+          statusCode: 422,
+        });
+      }
+
+      const vertexes = await provider.fetchRoute(dedupedCoordinates);
+
+      return mapCourseRouteResponse(vertexes);
     },
 
     async likeCourse(courseId, userId) {

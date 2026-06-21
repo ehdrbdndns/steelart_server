@@ -8,6 +8,8 @@ export const APP_ERROR_CODES = [
   'METHOD_NOT_ALLOWED',
   'VALIDATION_ERROR',
   'CONFLICT',
+  'TOO_MANY_WAYPOINTS',
+  'ROUTE_UNAVAILABLE',
   'INTERNAL_ERROR',
   'NOT_IMPLEMENTED',
 ] as const;
@@ -24,6 +26,8 @@ const APP_ERROR_STATUS_CODES: Record<AppErrorCode, number> = {
   METHOD_NOT_ALLOWED: 405,
   VALIDATION_ERROR: 422,
   CONFLICT: 409,
+  TOO_MANY_WAYPOINTS: 400,
+  ROUTE_UNAVAILABLE: 502,
   INTERNAL_ERROR: 500,
   NOT_IMPLEMENTED: 501,
 };
@@ -38,6 +42,8 @@ const APP_ERROR_MESSAGES: Record<AppErrorCode, string> = {
   METHOD_NOT_ALLOWED: 'Method not allowed',
   VALIDATION_ERROR: 'Validation failed',
   CONFLICT: 'Conflict',
+  TOO_MANY_WAYPOINTS: 'Too many waypoints',
+  ROUTE_UNAVAILABLE: 'Route unavailable',
   INTERNAL_ERROR: 'Internal server error',
   NOT_IMPLEMENTED: 'Not implemented',
 };

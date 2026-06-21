@@ -14,6 +14,7 @@ const serverEnvSchema = z.object({
   DB_USER: z.string().min(1, 'DB_USER is required'),
   JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
   KAKAO_CLIENT_ID: z.string().min(1, 'KAKAO_CLIENT_ID is required').optional(),
+  KAKAO_MOBILITY_REST_API_KEY: z.string().min(1, 'KAKAO_MOBILITY_REST_API_KEY is required').optional(),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });
 

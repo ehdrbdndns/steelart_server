@@ -4,6 +4,7 @@ import {
   COURSE_LIST_DEFAULT_PAGE,
   COURSE_LIST_DEFAULT_SIZE,
   COURSE_LIST_MAX_SIZE,
+  COURSE_ROUTE_MIN_ITEMS,
   RECENT_COMMUNITY_COURSE_DEFAULT_SIZE,
   RECENT_COMMUNITY_COURSE_MAX_SIZE,
 } from './types.js';
@@ -83,4 +84,15 @@ export const courseCheckinBodySchema = z.object({
   course_item_id: z.coerce.number().int().positive(),
   lat: z.coerce.number().min(-90).max(90),
   lng: z.coerce.number().min(-180).max(180),
+}).strict();
+
+const courseRouteItemSchema = z.object({
+  artwork_id: z.coerce.number().int().positive(),
+  seq: z.coerce.number().int().positive(),
+}).strict();
+
+export const courseRouteBodySchema = z.object({
+  items: z
+    .array(courseRouteItemSchema)
+    .min(COURSE_ROUTE_MIN_ITEMS, 'At least two artworks are required'),
 }).strict();

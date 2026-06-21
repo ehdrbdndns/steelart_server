@@ -49,6 +49,11 @@ Parameters:
     Type: String
     Default: ''
     Description: Apple client id placeholder.
+  KakaoMobilityRestApiKey:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: Kakao Mobility REST API key for course route directions (server-only).
   LogLevel:
     Type: String
     Default: info
@@ -319,6 +324,9 @@ Resources:
     Properties:
       CodeUri: ./
       Handler: src/lambdas/courses/handler.handler
+      Environment:
+        Variables:
+          KAKAO_MOBILITY_REST_API_KEY: !Ref KakaoMobilityRestApiKey
       Events:
         CoursesCreateRoute:
           Type: HttpApi
@@ -326,6 +334,13 @@ Resources:
             ApiId: !Ref SteelArtHttpApi
             Method: ANY
             Path: /v1/courses
+            PayloadFormatVersion: '2.0'
+        CoursesRouteRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v1/courses/route
             PayloadFormatVersion: '2.0'
         CoursesRecommendedRoute:
           Type: HttpApi
