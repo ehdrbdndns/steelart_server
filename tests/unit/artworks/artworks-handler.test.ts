@@ -59,6 +59,7 @@ function createArtworksServiceStub(overrides: Partial<ArtworksService> = {}): Ar
     async getArtworkDetail(artworkId) {
       return {
         address: '경북 포항시',
+        address_en: 'Pohang-si, Gyeongsangbuk-do',
         artist_name_en: 'Artist One',
         artist_name_ko: '작가 하나',
         audio_url_en: null,
@@ -116,6 +117,7 @@ function createArtworksServiceStub(overrides: Partial<ArtworksService> = {}): Ar
         artworks: [
           {
             address: '경북 포항시 영일대',
+            address_en: 'Yeongildae, Pohang-si, Gyeongsangbuk-do',
             artist_name_en: 'Artist One',
             artist_name_ko: '작가 하나',
             id: 1,

@@ -43,6 +43,7 @@ interface ArtworkCardRow extends RowDataPacket {
 
 interface ArtworkArchiveRow extends RowDataPacket {
   address: string | null;
+  address_en: string | null;
   artist_name_en: string;
   artist_name_ko: string;
   id: number;
@@ -56,6 +57,7 @@ interface ArtworkArchiveRow extends RowDataPacket {
 
 interface ArtworkDetailRow extends RowDataPacket {
   address: string | null;
+  address_en: string | null;
   artist_name_en: string;
   artist_name_ko: string;
   audio_url_en: string | null;
@@ -154,6 +156,7 @@ function mapArtworkCardRow(row: ArtworkCardRow): ArtworkCard {
 function mapArtworkArchiveRow(row: ArtworkArchiveRow): ArtworkArchiveItem {
   return {
     address: row.address,
+    address_en: row.address_en,
     artist_name_en: row.artist_name_en,
     artist_name_ko: row.artist_name_ko,
     id: row.id,
@@ -173,6 +176,7 @@ function mapArtworkDetailRow(
 ): ArtworkDetail {
   return {
     address: row.address,
+    address_en: row.address_en,
     artist_name_en: row.artist_name_en,
     artist_name_ko: row.artist_name_ko,
     audio_url_en: row.audio_url_en,
@@ -269,6 +273,7 @@ export const artworksRepository: ArtworksRepository = {
             p.name_ko AS place_name_ko,
             p.name_en AS place_name_en,
             p.address,
+            p.address_en,
             CAST(p.lat AS DOUBLE) AS lat,
             CAST(p.lng AS DOUBLE) AS lng,
             p.zone_id AS zone_id,
@@ -440,6 +445,7 @@ export const artworksRepository: ArtworksRepository = {
             ar.name_ko AS artist_name_ko,
             ar.name_en AS artist_name_en,
             p.address,
+            p.address_en,
             thumb.image_url AS thumbnail_image_url,
             thumb.image_width AS thumbnail_image_width,
             thumb.image_height AS thumbnail_image_height,

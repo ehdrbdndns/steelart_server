@@ -25,6 +25,7 @@ export interface ArtworkCard {
 
 export interface ArtworkArchiveItem {
   address: string | null;
+  address_en: string | null;
   artist_name_en: string;
   artist_name_ko: string;
   id: number;
@@ -67,6 +68,7 @@ export interface ArtworkImage {
 
 export interface ArtworkDetail {
   address: string | null;
+  address_en: string | null;
   artist_name_en: string;
   artist_name_ko: string;
   audio_url_en: string | null;

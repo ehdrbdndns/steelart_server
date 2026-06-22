@@ -57,6 +57,7 @@ test('artworks mapper builds bilingual filter response', () => {
 test('artworks mapper builds detail response with zone names', () => {
   assert.deepEqual(mapArtworkDetail({
     address: '경북 포항시 환호공원',
+    address_en: 'Hwanho Park, Buk-gu, Pohang-si, Gyeongsangbuk-do',
     artist_name_en: 'Artist One',
     artist_name_ko: '작가 하나',
     audio_url_en: null,
@@ -83,6 +84,7 @@ test('artworks mapper builds detail response with zone names', () => {
     zone_name_ko: '환호',
   }), {
     address: '경북 포항시 환호공원',
+    address_en: 'Hwanho Park, Buk-gu, Pohang-si, Gyeongsangbuk-do',
     artist_name_en: 'Artist One',
     artist_name_ko: '작가 하나',
     audio_url_en: null,
