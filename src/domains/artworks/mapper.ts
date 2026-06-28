@@ -4,10 +4,13 @@ import type {
   ArtworkCard,
   ArtworkDetail,
   ArtworkFiltersResponse,
+  ArtworkFiltersV2Response,
   ArtworkImage,
   ArtworkLikeResponse,
   ArtworkListResponse,
+  PlaceFilterSourceRow,
   ZonePlaceFilterOption,
+  ZonePlaceV2FilterOption,
 } from './types.js';
 
 const ARTIST_TYPE_FILTER_OPTIONS: ArtistTypeFilterOption[] = [
@@ -135,5 +138,70 @@ export function mapArtworkFiltersResponse(
         name_ko: place.name_ko,
       })),
     })),
+  };
+}
+
+export function mapArtworkFiltersV2Response(
+  placeRows: PlaceFilterSourceRow[],
+  festivalYears: string[],
+): { nameEnConflicts: string[]; response: ArtworkFiltersV2Response } {
+  const zones: ZonePlaceV2FilterOption[] = [];
+  const nameEnConflicts: string[] = [];
+
+  for (const row of placeRows) {
+    let zone = zones.find((candidate) => candidate.id === row.zone_id);
+
+    if (!zone) {
+      zone = {
+        id: row.zone_id,
+        name_en: row.zone_name_en,
+        name_ko: row.zone_name_ko,
+        places: [],
+      };
+      zones.push(zone);
+    }
+
+    let place = zone.places.find((candidate) => candidate.name_ko === row.place_name_ko);
+
+    if (!place) {
+      place = {
+        name_en: row.place_name_en,
+        name_ko: row.place_name_ko,
+        placeIds: [],
+      };
+      zone.places.push(place);
+    } else if (row.place_name_en !== place.name_en) {
+      // 같은 name_ko 그룹에 영문명이 갈리면: 대표값은 사전순 MIN으로 결정적 선택 + 충돌 기록.
+      if (!nameEnConflicts.includes(row.place_name_ko)) {
+        nameEnConflicts.push(row.place_name_ko);
+      }
+
+      if (row.place_name_en < place.name_en) {
+        place.name_en = row.place_name_en;
+      }
+    }
+
+    if (!place.placeIds.includes(row.place_id)) {
+      place.placeIds.push(row.place_id);
+    }
+  }
+
+  for (const zone of zones) {
+    for (const place of zone.places) {
+      place.placeIds.sort((left, right) => left - right);
+    }
+  }
+
+  return {
+    nameEnConflicts,
+    response: {
+      artistTypes: ARTIST_TYPE_FILTER_OPTIONS.map((option) => ({
+        label_en: option.label_en,
+        label_ko: option.label_ko,
+        value: option.value,
+      })),
+      festivalYears: [...festivalYears],
+      zones,
+    },
   };
 }

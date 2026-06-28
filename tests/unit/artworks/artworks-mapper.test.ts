@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   mapArtworkDetail,
   mapArtworkFiltersResponse,
+  mapArtworkFiltersV2Response,
   mapArtworkLikeResponse,
 } from '../../../src/domains/artworks/mapper.js';
 
@@ -116,4 +117,31 @@ test('artworks mapper builds minimal like response', () => {
     artworkId: 12,
     liked: true,
   });
+});
+
+// v2 매퍼는 같은 name_ko place들을 한 칩으로 묶고 placeIds를 모아야 한다.
+test('artworks v2 mapper groups places by name_ko and collects placeIds', () => {
+  const result = mapArtworkFiltersV2Response(
+    [
+      { zone_id: 1, zone_name_ko: '영일대해수욕장', zone_name_en: 'Yeongildae Beach', place_id: 2, place_name_ko: '영일대해수욕장', place_name_en: 'Yeongildae Beach' },
+      { zone_id: 1, zone_name_ko: '영일대해수욕장', zone_name_en: 'Yeongildae Beach', place_id: 1, place_name_ko: '영일대해수욕장', place_name_en: 'Yeongil-dae Beach' },
+      { zone_id: 1, zone_name_ko: '영일대해수욕장', zone_name_en: 'Yeongildae Beach', place_id: 3, place_name_ko: '설머리다목적광장', place_name_en: 'Seolmeori Plaza' },
+    ],
+    ['2024', '2023'],
+  );
+
+  assert.deepEqual(result.response.zones, [
+    {
+      id: 1,
+      name_en: 'Yeongildae Beach',
+      name_ko: '영일대해수욕장',
+      places: [
+        { name_en: 'Yeongil-dae Beach', name_ko: '영일대해수욕장', placeIds: [1, 2] },
+        { name_en: 'Seolmeori Plaza', name_ko: '설머리다목적광장', placeIds: [3] },
+      ],
+    },
+  ]);
+  assert.deepEqual(result.response.festivalYears, ['2024', '2023']);
+  assert.deepEqual(result.response.artistTypes.map((option) => option.value), ['COMPANY', 'INDIVIDUAL']);
+  assert.deepEqual(result.nameEnConflicts, ['영일대해수욕장']);
 });
