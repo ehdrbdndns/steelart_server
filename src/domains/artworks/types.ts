@@ -85,6 +85,7 @@ export interface ArtworkDetail {
   liked: boolean;
   lng: number;
   material: string | null;
+  material_en: string | null;
   place_name_en: string;
   place_name_ko: string;
   production_year: number | null;

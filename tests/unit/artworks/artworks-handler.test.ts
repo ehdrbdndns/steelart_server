@@ -74,6 +74,7 @@ function createArtworksServiceStub(overrides: Partial<ArtworksService> = {}): Ar
         liked: true,
         lng: 129.3,
         material: 'steel',
+        material_en: 'steel (en)',
         place_name_en: 'Space Walk',
         place_name_ko: '스페이스워크',
         production_year: 2024,
