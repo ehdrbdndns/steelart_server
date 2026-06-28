@@ -89,6 +89,21 @@ export async function handleArtworksRequest(
       });
     }
 
+    if (request.path === '/v2/artworks/filters') {
+      assertMethod(request.method, ['GET']);
+      const { nameEnConflicts, response } = await service.getArtworkFiltersV2();
+
+      if (nameEnConflicts.length > 0) {
+        logger.warn('Place name_en conflicts detected in v2 filters', {
+          nameEnConflicts,
+        });
+      }
+
+      return ok(response, {
+        requestId: request.requestId ?? null,
+      });
+    }
+
     if (request.routePath === '/v1/artworks/{artworkId}/like') {
       assertMethod(request.method, ['POST', 'DELETE']);
       const input = parseInput({

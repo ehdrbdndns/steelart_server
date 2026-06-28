@@ -117,3 +117,31 @@ export interface ArtworkFiltersResponse {
   festivalYears: string[];
   zones: ZonePlaceFilterOption[];
 }
+
+export interface PlaceFilterSourceRow {
+  place_id: number;
+  place_name_en: string;
+  place_name_ko: string;
+  zone_id: number;
+  zone_name_en: string;
+  zone_name_ko: string;
+}
+
+export interface PlaceV2FilterOption {
+  name_en: string;
+  name_ko: string;
+  placeIds: number[];
+}
+
+export interface ZonePlaceV2FilterOption {
+  id: number;
+  name_en: string;
+  name_ko: string;
+  places: PlaceV2FilterOption[];
+}
+
+export interface ArtworkFiltersV2Response {
+  artistTypes: ArtistTypeFilterOption[];
+  festivalYears: string[];
+  zones: ZonePlaceV2FilterOption[];
+}

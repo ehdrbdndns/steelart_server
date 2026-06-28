@@ -24,6 +24,9 @@ function createArtworksRepositoryStub(
     async listArtworkFilters() {
       throw new Error('not used');
     },
+    async listArtworkFiltersV2() {
+      throw new Error('not used');
+    },
     async listArtworks() {
       throw new Error('not used');
     },
@@ -129,4 +132,29 @@ test('artworks service keeps unlike requests idempotent', async () => {
       step: 'delete',
     },
   ]);
+});
+
+// getArtworkFiltersV2는 중복 place들을 name_ko 단위로 묶어 placeIds로 반환해야 한다.
+test('artworks service getArtworkFiltersV2 groups duplicate places by name', async () => {
+  const repository = createArtworksRepositoryStub({
+    async listArtworkFiltersV2() {
+      return {
+        festivalYears: ['2024'],
+        placeRows: [
+          { zone_id: 1, zone_name_ko: '영일대해수욕장', zone_name_en: 'Yeongildae Beach', place_id: 1, place_name_ko: '영일대해수욕장', place_name_en: 'Yeongildae Beach' },
+          { zone_id: 1, zone_name_ko: '영일대해수욕장', zone_name_en: 'Yeongildae Beach', place_id: 2, place_name_ko: '영일대해수욕장', place_name_en: 'Yeongildae Beach' },
+        ],
+      };
+    },
+  });
+  const service = createArtworksService({
+    artworksRepository: repository,
+  });
+
+  const result = await service.getArtworkFiltersV2();
+
+  assert.deepEqual(result.response.zones[0].places, [
+    { name_en: 'Yeongildae Beach', name_ko: '영일대해수욕장', placeIds: [1, 2] },
+  ]);
+  assert.deepEqual(result.nameEnConflicts, []);
 });
