@@ -151,6 +151,8 @@ function createArtworksServiceStub(overrides: Partial<ArtworksService> = {}): Ar
             artist_name_ko: '작가 하나',
             id: 1,
             liked: false,
+            place_name_en: 'Yeongildae Beach',
+            place_name_ko: '영일대해수욕장',
             thumbnail_image_height: 800,
             thumbnail_image_url: null,
             thumbnail_image_width: 1200,

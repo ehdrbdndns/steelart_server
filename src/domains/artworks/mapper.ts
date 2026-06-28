@@ -51,6 +51,8 @@ export function mapArtworkArchiveItem(item: ArtworkArchiveItem): ArtworkArchiveI
     artist_name_ko: item.artist_name_ko,
     id: item.id,
     liked: item.liked,
+    place_name_en: item.place_name_en,
+    place_name_ko: item.place_name_ko,
     thumbnail_image_height: item.thumbnail_image_height,
     thumbnail_image_url: item.thumbnail_image_url,
     thumbnail_image_width: item.thumbnail_image_width,

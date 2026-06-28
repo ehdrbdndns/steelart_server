@@ -30,6 +30,8 @@ export interface ArtworkArchiveItem {
   artist_name_ko: string;
   id: number;
   liked: boolean;
+  place_name_en: string;
+  place_name_ko: string;
   thumbnail_image_height: number | null;
   thumbnail_image_url: string | null;
   thumbnail_image_width: number | null;
