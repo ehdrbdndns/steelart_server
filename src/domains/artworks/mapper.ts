@@ -46,6 +46,7 @@ export function mapArtworkCard(card: ArtworkCard): ArtworkCard {
 export function mapArtworkArchiveItem(item: ArtworkArchiveItem): ArtworkArchiveItem {
   return {
     address: item.address,
+    address_en: item.address_en,
     artist_name_en: item.artist_name_en,
     artist_name_ko: item.artist_name_ko,
     id: item.id,
@@ -90,6 +91,7 @@ export function mapArtworkImage(image: ArtworkImage): ArtworkImage {
 export function mapArtworkDetail(detail: ArtworkDetail): ArtworkDetail {
   return {
     address: detail.address,
+    address_en: detail.address_en,
     artist_name_en: detail.artist_name_en,
     artist_name_ko: detail.artist_name_ko,
     audio_url_en: detail.audio_url_en,
