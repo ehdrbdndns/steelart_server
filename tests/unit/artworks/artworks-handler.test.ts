@@ -461,3 +461,29 @@ test('artworks handler requires authorization for like routes', async () => {
   assert.equal(response.statusCode, 401);
   assert.equal(JSON.parse(response.body as string).error.code, 'UNAUTHORIZED');
 });
+
+// v2 필터 핸들러는 name_ko 단위로 묶인 placeIds 응답을 반환해야 한다.
+test('artworks handler returns grouped places for GET /v2/artworks/filters', async () => {
+  applyServerTestEnv();
+  const token = signAccessToken(1, {
+    secret: 'test-secret',
+  });
+
+  const response = await handleArtworksRequest(
+    createEvent({
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      rawPath: '/v2/artworks/filters',
+      requestContext: createRequestContext('/v2/artworks/filters'),
+      routeKey: 'GET /v2/artworks/filters',
+    }),
+    {} as never,
+    createArtworksServiceStub(),
+  ) as APIGatewayProxyStructuredResultV2;
+
+  assert.equal(response.statusCode, 200);
+  const body = JSON.parse(response.body as string);
+  assert.deepEqual(body.data.zones[0].places[0].placeIds, [1, 2]);
+  assert.equal(body.data.zones[0].places[0].name_ko, '영일대해수욕장');
+});
