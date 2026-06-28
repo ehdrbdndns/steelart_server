@@ -14,6 +14,7 @@ import type {
   ArtworkListInput,
   ArtworkSort,
   PlaceFilterOption,
+  PlaceFilterSourceRow,
   ZonePlaceFilterOption,
 } from './types.js';
 
@@ -220,6 +221,7 @@ export interface ArtworksRepository {
   findArtworkDetail(artworkId: number, userId: number): Promise<ArtworkDetail | null>;
   findArtworkExists(artworkId: number): Promise<boolean>;
   listArtworkFilters(): Promise<{ festivalYears: string[]; zones: ZonePlaceFilterOption[] }>;
+  listArtworkFiltersV2(): Promise<{ festivalYears: string[]; placeRows: PlaceFilterSourceRow[] }>;
   listArtworks(input: ArtworkListInput, userId: number): Promise<{ artworks: ArtworkArchiveItem[]; total: number }>;
   listHomeArtworkCards(zoneId: number, userId: number): Promise<ArtworkCard[]>;
 }
@@ -378,6 +380,33 @@ export const artworksRepository: ArtworksRepository = {
 
           return zones;
         }, []),
+      };
+    });
+  },
+
+  async listArtworkFiltersV2() {
+    return withConnection(async (connection) => {
+      const [placeRows] = await connection.execute<PlaceFilterRow[]>(
+        `SELECT
+            z.id AS zone_id,
+            z.name_ko AS zone_name_ko,
+            z.name_en AS zone_name_en,
+            p.id AS place_id,
+            p.name_ko AS place_name_ko,
+            p.name_en AS place_name_en
+         FROM places p
+         INNER JOIN zones z ON z.id = p.zone_id
+         ORDER BY z.sort_order ASC, z.name_ko ASC, p.name_ko ASC, p.id ASC`,
+      );
+      const [festivalYearRows] = await connection.execute<FestivalYearFilterRow[]>(
+        `SELECT DISTINCT \`year\` AS year
+         FROM artwork_festivals
+         ORDER BY CAST(\`year\` AS UNSIGNED) DESC, \`year\` DESC`,
+      );
+
+      return {
+        festivalYears: festivalYearRows.map((row) => row.year),
+        placeRows,
       };
     });
   },

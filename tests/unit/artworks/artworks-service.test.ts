@@ -24,6 +24,9 @@ function createArtworksRepositoryStub(
     async listArtworkFilters() {
       throw new Error('not used');
     },
+    async listArtworkFiltersV2() {
+      throw new Error('not used');
+    },
     async listArtworks() {
       throw new Error('not used');
     },
