@@ -272,6 +272,13 @@ Resources:
             Method: ANY
             Path: /v1/artworks/filters
             PayloadFormatVersion: '2.0'
+        ArtworksFiltersV2Route:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SteelArtHttpApi
+            Method: ANY
+            Path: /v2/artworks/filters
+            PayloadFormatVersion: '2.0'
         ArtworksDetailRoute:
           Type: HttpApi
           Properties:
