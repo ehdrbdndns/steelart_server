@@ -49,6 +49,8 @@ interface ArtworkArchiveRow extends RowDataPacket {
   artist_name_ko: string;
   id: number;
   liked: number | boolean;
+  place_name_en: string;
+  place_name_ko: string;
   thumbnail_image_height: number | null;
   thumbnail_image_url: string | null;
   thumbnail_image_width: number | null;
@@ -162,6 +164,8 @@ function mapArtworkArchiveRow(row: ArtworkArchiveRow): ArtworkArchiveItem {
     artist_name_ko: row.artist_name_ko,
     id: row.id,
     liked: row.liked === true || row.liked === 1,
+    place_name_en: row.place_name_en,
+    place_name_ko: row.place_name_ko,
     thumbnail_image_height: row.thumbnail_image_height,
     thumbnail_image_url: row.thumbnail_image_url,
     thumbnail_image_width: row.thumbnail_image_width,
@@ -475,6 +479,8 @@ export const artworksRepository: ArtworksRepository = {
             ar.name_en AS artist_name_en,
             p.address,
             p.address_en,
+            p.name_ko AS place_name_ko,
+            p.name_en AS place_name_en,
             thumb.image_url AS thumbnail_image_url,
             thumb.image_width AS thumbnail_image_width,
             thumb.image_height AS thumbnail_image_height,
