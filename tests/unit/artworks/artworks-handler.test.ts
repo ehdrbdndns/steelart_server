@@ -111,6 +111,35 @@ function createArtworksServiceStub(overrides: Partial<ArtworksService> = {}): Ar
         ],
       };
     },
+    async getArtworkFiltersV2() {
+      return {
+        nameEnConflicts: [],
+        response: {
+          artistTypes: [
+            {
+              label_en: 'Company',
+              label_ko: '단체',
+              value: 'COMPANY',
+            },
+          ],
+          festivalYears: ['2024'],
+          zones: [
+            {
+              id: 1,
+              name_en: 'Yeongildae Beach',
+              name_ko: '영일대해수욕장',
+              places: [
+                {
+                  name_en: 'Yeongildae Beach',
+                  name_ko: '영일대해수욕장',
+                  placeIds: [1, 2],
+                },
+              ],
+            },
+          ],
+        },
+      };
+    },
     async listArtworks(_input) {
       return {
         artworks: [

@@ -2,6 +2,7 @@ import { AppError } from '../../shared/api/errors.js';
 import {
   mapArtworkDetail,
   mapArtworkFiltersResponse,
+  mapArtworkFiltersV2Response,
   mapArtworkLikeResponse,
   mapArtworkListResponse,
 } from './mapper.js';
@@ -9,6 +10,7 @@ import type { ArtworksRepository } from './repository.js';
 import type {
   ArtworkDetail,
   ArtworkFiltersResponse,
+  ArtworkFiltersV2Response,
   ArtworkLikeResponse,
   ArtworkListInput,
   ArtworkListResponse,
@@ -17,6 +19,7 @@ import type {
 export interface ArtworksService {
   getArtworkDetail(artworkId: number, userId: number): Promise<ArtworkDetail>;
   getArtworkFilters(): Promise<ArtworkFiltersResponse>;
+  getArtworkFiltersV2(): Promise<{ nameEnConflicts: string[]; response: ArtworkFiltersV2Response }>;
   likeArtwork(artworkId: number, userId: number): Promise<ArtworkLikeResponse>;
   listArtworks(input: ArtworkListInput, userId: number): Promise<ArtworkListResponse>;
   unlikeArtwork(artworkId: number, userId: number): Promise<ArtworkLikeResponse>;
@@ -55,6 +58,11 @@ export function createArtworksService(
     async getArtworkFilters() {
       const filters = await dependencies.artworksRepository.listArtworkFilters();
       return mapArtworkFiltersResponse(filters.zones, filters.festivalYears);
+    },
+
+    async getArtworkFiltersV2() {
+      const filters = await dependencies.artworksRepository.listArtworkFiltersV2();
+      return mapArtworkFiltersV2Response(filters.placeRows, filters.festivalYears);
     },
 
     async likeArtwork(artworkId, userId) {
